@@ -14,7 +14,7 @@ from path_generation import TaskPathGenerator
 from prompts import *
 from retriever import Retriever
 
-openai.api_key = "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"
+openai.api_key = ""
 lock = threading.Lock()
 
 def write_error(error):
