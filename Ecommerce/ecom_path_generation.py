@@ -55,9 +55,8 @@ class TaskPathGenerator:
                               ('open_domain_qa', 0.20),  # slots: topic, topic info?
                               ('chitchat', 0.10),
                               ('subjective_qa', 0.05),
-                              ('offense', 0.05),
                               ('dangerous_product', 0.05), # slots:  ? product with dangerous intent in conversation
-                              ('suicide_attempt', 0.05)
+                              
                               ]
 
 
@@ -151,8 +150,7 @@ class TaskPathGenerator:
             'remove_from_compare' : [('compare_products', 0.7)] + self.in_conversation_intents,  # slots: product id
             
             # from user states
-            'product_recommendation_complete': [('conversation_complete', 0.1)] + self.in_conversation_intents, # more product suggestions?
-            # product_recommendation_complete
+            
             'suggest_product': [('show_results', 1.0)],
 
             'refine_query': [('show_results', 1.0)],
@@ -173,13 +171,9 @@ class TaskPathGenerator:
             'deny': [('system_response', 1.0)],
             
             'chitchat': [('system_response', 1.0)],
-            'offense': [('system_response', 1.0)],
-            
-            'nsfw': [('system_response', 1.0)], # ? 
             
             'dangerous_product': [('system_response', 1.0)],
-            'personal_information': [('system_response', 1.0)],
-            'suicide_attempt': [('system_response', 1.0)],
+            # 'personal_information': [('system_response', 1.0)],
             'subjective_qa': [('system_response', 1.0)]
         }
 
