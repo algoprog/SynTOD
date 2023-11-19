@@ -2,6 +2,9 @@ import random
 import logging
 
 import matplotlib.pyplot as plt
+from constants import *
+
+import csv
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -43,140 +46,146 @@ class TaskPathGenerator:
         Initializes the TOD agent graph
         :param ci_weight: the probability weight of the common intents during in-task
         """
-        # self.common_intents = [
+        # user intents 
+        ecomm_start_intents = [
+                                    
+                                    (intents.search_product, 0.25),  
+                                    (intents.suggest_product, 0.23), 
+                                    (intents.open_domain_qa, 0.20),  
+                                    (intents.chitchat, 0.07),
+                                    (intents.subjective_qa, 0.05),
+                                    (intents.dangerous_product, 0.03), 
+                                    (intents.generic_product_query, 0.07)
+                                    ]
 
-        # ]
+        ecomm_in_conversation_intents = [
+                                        (intents.more_results, 0.25 * 0.7 * (1 - ci_weight)),
+                                        
+                                        
+                                        (intents.acknowledge, 0.10 * 0.7 * (1 - ci_weight)),
+                                        # (intents.add_to_cart, 0.30 * 0.7 * (1 - ci_weight)),   
+                                        (intents.refine_query, 0.15 * 0.7 * (1 - ci_weight)),  
+                                        (intents.buy_cart, 0.15 * 0.7 * (1 - ci_weight)),   
+                                        (intents.delivery_address, 0.05 * 0.7 * (1 - ci_weight)), 
+                                        
+                                        (intents.product_qa, 0.7 * 0.15 * (1 - ci_weight)), 
+                                        (intents.show_attributes, 0.1 * 0.15 * (1 - ci_weight)),  
+                                        (intents.repeat, 0.2 * 0.15 * (1 - ci_weight)), 
+                                        
+                                        (intents.compare_products, 0.55 * 0.15 * (1 - ci_weight)),   
+                                        # (intents.add_for_compare, 0.45 * 0.15 * (1 - ci_weight)),   
+                    
+                                        ]
 
-        self.start_intents = [
-                              
-                                
-                              ('search_product', 0.25),  # slots : product type , attribute list  - e.g color, specifications 
-                              ('suggest_product', 0.25), # slots : product ,  attribute list
-                              ('open_domain_qa', 0.20),  # slots: topic, topic info?
-                              ('chitchat', 0.10),
-                              ('subjective_qa', 0.05),
-                              ('dangerous_product', 0.05), # slots:  ? product with dangerous intent in conversation
-                              
-                              ]
-
-
-        self.in_conversation_intents = [
-                                ('more_results', 0.20 * 0.7 * (1 - ci_weight)),
-                                
-                                
-                                ('acknowledge', 0.05 * 0.7 * (1 - ci_weight)),
-                                ('add_to_cart', 0.25 * 0.7 * (1 - ci_weight)),   # slots: product id
-                                ('remove_from_cart', 0.15 * 0.7 * (1 - ci_weight)),  # slots: product id
-                                ('user_preference', 0.15 * 0.7 * (1 - ci_weight)),  # slots: attributes list - use relevant attributes - use chatgpt 
-                                ('buy_cart', 0.15 * 0.7 * (1 - ci_weight)),   
-                                ('delivery_address', 0.05 * 0.7 * (1 - ci_weight)), # slots: address [city state pin code]
-                                
-                                ('product_qa', 0.7 * 0.15 * (1 - ci_weight)), # slots : product id and question 
-                                ('show_attributes', 0.1 * 0.15 * (1 - ci_weight)),  # slots: productid rename intent: show_attributes:-> summarize_product
-                                ('repeat', 0.2 * 0.15 * (1 - ci_weight)), 
-                                
-                                ('compare_products', 0.5 * 0.15 * (1 - ci_weight)),   # slots : products list of ids 
-                                ('add_for_compare', 0.30 * 0.15 * (1 - ci_weight)),   # slots: product id
-                                ('remove_from_compare', 0.20 * 0.15 * (1 - ci_weight)),  # slots: product id
-                                
-                                ]
+        ecom_intents_after_selection = [(intents.product_qa, 0.2 * (1 - ci_weight)),
+                                        (intents.show_attributes, 0.25 * (1 - ci_weight)),
+                                        (intents.add_to_cart, 0.3 * (1 - ci_weight)),
+                                        (intents.add_for_compare, 0.20 * (1 - ci_weight)),		
+                                        (intents.delivery_address, 0.05 * (1 - ci_weight))
+                                        ]
 
         self.graph = {
-            'stop': [],
+                    intents.stop: [],
 
-            # from system states
-            'start': self.start_intents,
-            'started_conversation' : [('start', 1.0)],
-            'buy_cart' : [('conversation_complete',1.0)],
-            'user_preference' : [('refine_query',1.0)],
+                    # from system states
+                    intents.start: ecomm_start_intents,                  
 
-                              
+                    intents.show_results: [(intents.select_i, 1.0 * 0.8 * (1 - ci_weight)),
+                                    (intents.more_results, 1.0 * 0.15 * (1 - ci_weight)),
+                                    (intents.refine_query, 1.0 * 0.05 * (1 - ci_weight) )
+                                    ],
 
-            'show_results': [('select_i', 1.0 * 0.8 * (1 - ci_weight)),
-                             ('more_results', 1.0 * 0.15 * (1 - ci_weight)),
-                             ('user_preference', 1.0 * 0.05 * (1 - ci_weight) )
-                             ],
+                    intents.clarifying_questions : [(intents.no_more_clarifying_questions, 0.3), (intents.clarifying_questions, 0.7)],
 
-            'clarifying_questions' : [('no_more_clarifying_questions', 0.3), ('clarifying_questions', 0.7)],
+                    intents.no_more_clarifying_questions : [(intents.show_results, 1.0)],
 
-            'no_more_clarifying_questions' : [('refine_query', 1.0)],
-            
-            'show_suggestions': [('select_i', 1 * 0.8 * (1 - ci_weight)),
-                                 ('more_results', 1 * 0.15 * (1 - ci_weight)),
-                                 ('user_preference', 1.0 * 0.05 * (1 - ci_weight)),
-                                ],
-            'show_attributes_begin': [('system_response', 1.0)],
+                    intents.shown_cart : [(intents.acknowledge, 0.1), (intents.buy_cart, 0.4), (intents.select_i, 0.20), (intents.select_i_remove_from_cart, 0.30)],
+
+                    intents.select_i_remove_from_cart : [(intents.remove_from_cart, 1.0)],
+                    
+
+
+                    intents.shown_attributes: ecomm_in_conversation_intents,
+
+                    intents.show_comparison : [(intents.select_i , ci_weight * 0.40), (intents.select_i_remove_from_compare, ci_weight*0.60) ] + ecomm_in_conversation_intents,
+
+                    intents.select_i_remove_from_compare : [(intents.remove_from_compare,1.0)],
+                    
+
+                    intents.option_selected: ecom_intents_after_selection,
+
+                    intents.system_response: ecomm_start_intents,
+
+                    intents.in_conversation_system_response: ecomm_in_conversation_intents,
+                    
+                    intents.show_suggestions : [(intents.select_i, 1 * 0.8 * (1 - ci_weight)),
+                                        (intents.more_results, 1 * 0.15 * (1 - ci_weight)),
+                                        (intents.refine_query, 1.0 * 0.05 * (1 - ci_weight)),
+                                        ],
+
+                    intents.system_response_cart_removal : [(intents.acknowledge, 0.3),(intents.suggest_product, 0.7)],
+                    intents.system_response_added_to_cart : [(intents.acknowledge,0.3), (intents.suggest_product, 0.5), (intents.buy_cart, 0.2)],
+                    intents.system_response_add_for_compare : [(intents.compare_products, 0.7)] + ecomm_in_conversation_intents,
+                    intents.system_response_remove_from_compare : [(intents.compare_products, 0.7)] + ecomm_in_conversation_intents,
+                    # from user states
+
+                    # intents.started_conversation : [(intents.start, 1.0)],
+                    
+                    
+                    intents.suggest_product: [(intents.show_suggestions, 1.0)],
+                    
+                    intents.show_attributes: [(intents.shown_attributes, 1.0)],
+                    intents.generic_product_query:[(intents.clarifying_questions, 1.0 )],  
+                    
+                    intents.search_product:[(intents.show_results, 1.0 )],  
+                    
+                    intents.add_to_cart: [(intents.system_response_added_to_cart, 1.0)],   
+                    intents.show_cart : [(intents.shown_cart, 1.0)] ,
+                    intents.bought_cart : [(intents.stop, 0.9), (intents.suggest_product, 0.1)],
+
+                    intents.remove_from_cart: [(intents.system_response_cart_removal, 1.0)],  
+                    
+                    intents.buy_cart: [(intents.bought_cart, 1.0)],   
+
+                    intents.compare_products: [(intents.show_comparison, 1.0)],   
+                    
+
+        #############################################################################################################
+
+                    intents.delivery_address: ecomm_in_conversation_intents, 
+                    
+                    
+                    intents.product_qa: [(intents.select_i, 0.7)] + ecomm_in_conversation_intents, 
+                    
+                    intents.add_for_compare : [(intents.system_response_add_for_compare, 1.0)] ,  
+                    
+                    intents.remove_from_compare : [(intents.system_response_remove_from_compare, 1.0)],  
+                    
+        #############################################################################################################
             
 
-            'option_selected': [('product_qa', 0.2 * (1 - ci_weight)),
-                                ('show_attributes_begin', 0.2 * (1 - ci_weight)),
-                                ('add_to_cart', 0.2 * (1 - ci_weight)),
-                                ('add_for_compare', 0.15 * (1 - ci_weight)),		
-                                ('remove_from_cart', 0.15 * (1 - ci_weight)),
-                                ('remove_from_compare', 0.05 * (1 - ci_weight)),
-                                ('delivery_address', 0.05 * (1 - ci_weight))
-                                ],
+                    intents.refine_query: [(intents.show_results, 1.0)],
+                    intents.more_results: [(intents.show_results, 1.0)],
 
-            'conversation_complete': [('end', 1.0)],
+                    
+                    intents.acknowledge: [(intents.in_conversation_system_response, 1.0)],  # ? 
 
-            'system_response': self.start_intents,
+                    intents.open_domain_qa: [(intents.system_response, 1.0)],
+                    
+                    intents.select_i: [(intents.option_selected, 1.0)],   # ? 
 
-            'in_conversation_system_response': self.in_conversation_intents,
-            'generic_product_query':[('clarifying_questions', 1.0 * (1 - ci_weight))],  
-            
-            # misc states starting
-                                
-            'search_product':[('show_results', 1.0 * (1 - ci_weight))],  # slots : product type , attribute list  - e.g color, specifications 
-            'suggest_product': [], # slots : product ,  attribute list
-            
-            # misc states in conversation
-            'more_similar_products': [],
-            
-            'add_to_cart': self.in_conversation_intents,   # slots: product id
-            'show_cart' : [('acknowledge', 0.3), ('buy_cart', 0.4), ('select_i', 0.3)] ,
-            'remove_from_cart': [('acknowledge', 0.3),('suggest_product', 0.7)],  # slots: product id
-            
-            'buy_cart': [('acknowledge', 0.3),('stop', 0.7)],   
-            'delivery_address': self.in_conversation_intents, # slots: address [city state pin code]
-            
-            
-            'compare_products': [('select_i', 0.5)] + self.in_conversation_intents,   # slots : products list of ids 
-            # remove_from_compare	more_results	add_to_cart	product_qa	self.in_conversation_intents
-            
-            'product_qa': [('select_i', 0.7)] + self.in_conversation_intents, # slots : product id and question 
-            
-            
-            'add_for_compare' : [('compare_products', 0.7)] + self.in_conversation_intents,   # slots: product id
-            'remove_from_compare' : [('compare_products', 0.7)] + self.in_conversation_intents,  # slots: product id
-            
-            # from user states
-            
-            'suggest_product': [('show_results', 1.0)],
-
-            'refine_query': [('show_results', 1.0)],
-            'more_results': [('show_results', 1.0)],
-
-            
-            'acknowledge': [('in_conversation_system_response', 1.0)],  # ? 
-
-            'open_domain_qa': [('system_response', 1.0)],
-            
-            'select_i': [('option_selected', 1.0)],   # ? 
-
-            
-            'show_attributes': [('system_response', 1.0)],
-            
-            
-            'repeat': [('system_response', 1.0)],
-            'deny': [('system_response', 1.0)],
-            
-            'chitchat': [('system_response', 1.0)],
-            
-            'dangerous_product': [('system_response', 1.0)],
-            # 'personal_information': [('system_response', 1.0)],
-            'subjective_qa': [('system_response', 1.0)]
-        }
-
+                    
+                    
+                    
+                    intents.repeat: [(intents.system_response, 1.0)],
+                    intents.deny: [(intents.system_response, 1.0)],
+                    
+                    intents.chitchat: [(intents.system_response, 1.0)],
+                    
+                    intents.dangerous_product: [(intents.system_response, 1.0)],
+                    
+                    intents.subjective_qa: [(intents.system_response, 1.0)]
+                }
     def generate_path(self, max_length=40, num_clari=5):
         """
         Generates a path of system-user states
@@ -184,9 +193,34 @@ class TaskPathGenerator:
         :param num_clari: the max number of clarification questions in a conversation
         :return: list of state names
         """
-        search_intents = ['search_product', 'suggest_product']
-        system_intents = ['system_response', 'in_conversation_system_response', 'show_results', 'show_suggestions', 
-                          'option_selected', 'started_conversation', 'product_recommendation_complete']
+        search_intents = [
+
+                        intents.search_product, 
+                        intents.suggest_product,
+                        intents.refine_query
+                          
+                          ]
+        system_intents = [
+
+                        intents.start,
+                        intents.show_results,
+                        intents.clarifying_questions,
+                        intents.no_more_clarifying_questions,
+                        intents.shown_cart,
+                        intents.select_i_remove_from_cart,
+                        intents.shown_attributes,
+                        intents.show_comparison ,
+                        intents.select_i_remove_from_compare ,
+                        intents.option_selected,
+                        intents.system_response,
+                        intents.in_conversation_system_response,
+                        intents.show_suggestions,
+                        intents.system_response_cart_removal ,
+                        intents.system_response_added_to_cart,
+                        intents.system_response_add_for_compare ,
+                        intents.system_response_remove_from_compare   
+
+                        ]
         started_conversation = False
         finished_product_recommendation = False
         
@@ -199,23 +233,22 @@ class TaskPathGenerator:
         clarifying_question_number = 0
         
         for _ in range(max_length - 1):
-            if current_node == 'end':
+            if current_node == intents.stop:
                 break
             
             current_node_name = current_node
 
 
-            # current_node_name = 'goto_step' if 'goto_step' in current_node else current_node # ?
-            if finished_product_recommendation and current_node_name in system_intents and current_node_name != 'conversation_complete':
-                current_node_name = 'product_recommended'
             neighbors = self.graph[current_node_name]
             if not neighbors:
                 break
 
             probabilities = [edge[1] * 100 for edge in neighbors]
-            # if current_node_name == 'user_preference':
-            #     print(f"here")
-
+            s = 0
+            for p in probabilities :
+                s +=p
+            probabilities = [p/s for p in probabilities]
+            
             chosen_node, prob = random.choices(neighbors, weights=probabilities, k=1)[0]
             i = 0
             while chosen_node in search_intents and issued_query:
@@ -227,62 +260,80 @@ class TaskPathGenerator:
 
             system_turn = current_node in system_intents
 
-            if current_node == 'clarifying_questions':
-                if clarifying_question_number == num_clari:
-                    current_node = 'no_more_clarifying_questions'
+            
+            if current_node == intents.clarifying_questions:
+                '''
+                    Limit the number of consecutive clarifying questions
+                '''
+                if clarifying_question_number >= num_clari:
+                    current_node = intents.no_more_clarifying_questions
                     clarifying_question_number = 0
                 else:
                     clarifying_question_number += 1
             
-            if current_node == 'more_results' and shown_result_pages == 2:
-                current_node = 'select_i'
-            elif current_node == 'show_results':
+            if current_node == intents.more_results and shown_result_pages >= 2:
+                '''
+                    Limit user asking for more results more than twice .. including first one
+                    - To avoid endless loops 
+                ''' 
+                current_node = intents.select_i
+            elif current_node == intents.show_results:
                 shown_result_pages += 1
             
             
-            elif current_node == 'started_conversation':
+            elif current_node == intents.start:
                 started_conversation = True
                 
-            elif current_node == 'option_selected':
+            elif current_node == intents.option_selected:
                 selected_product = True
             elif current_node in search_intents:
                 started_conversation = False
                 issued_query = True
-            elif current_node == 'system_response' and started_conversation:
-                current_node = 'in_conversation_system_response'
-            elif not system_turn and selected_product and not started_conversation and random.random() > 0.3:
-                current_node = random.choice(['started_conversation', 'acknowledge'])
+            elif current_node == intents.system_response and started_conversation:
+                current_node = intents.in_conversation_system_response
+            
+            elif not system_turn and selected_product and not started_conversation and random.random() > 0.7:
+                '''
+                    Product is selected after the query results are shown
+                    Will make the user to jump on a different search or just continue 
+                '''
+                current_node = random.choice([intents.start, intents.acknowledge])
+            
             elif not system_turn and not selected_product and random.random() > 0.3 and \
-                    current_node not in ['select_i', 'more_results']:
-                current_node = random.choice(['search_product', 'suggest_product'])
+                    current_node not in [intents.select_i, intents.more_results]:
+                '''
+                    Avoid path to get stuck
+                '''
+                current_node = random.choice([intents.search_product, intents.suggest_product])
 
             walk.append(current_node)
 
-        if walk[-1] != 'end':
-            #walk.append('stop')
-            walk.append('end')
+        if walk[-1] != 'stop':
+            walk.append('stop')
 
-        walk_final = []
-        for w in walk:
-            if w == 'show_attributes_begin':
-                w = 'show_attributes'
-            # if w == 'system_response_begin':
-            #     w = 'system_response'
-            walk_final.append(w)
-
-        return walk_final
+        return walk
 
 
 if __name__ == '__main__':
     cg = TaskPathGenerator()
 
-    num_paths = 50
+    num_paths = 100
+
+    path = cg.generate_path(max_length=30, num_clari=4)
 
     paths = [cg.generate_path(max_length=30, num_clari=4) for _ in
              range(num_paths)]
 
-    for p in paths[:20]:
-        print(' -> '.join(p))
+    
+    file_name = 'generated_paths.csv'
+
+    # Open the file in write mode and use 'csv.writer' to write the data
+    with open(file_name, 'w', newline='') as file:
+        csv_writer = csv.writer(file)
+        
+        # Write each row to the CSV file
+        for p in paths:
+            csv_writer.writerow(p)
 
     plot_states_frequency(paths)
 

@@ -10,7 +10,7 @@ title = 'title'
 rating = 'overall'
 ratingCount = 'vote'
 
-
+openai_keys = ['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']
 
 class Intents:
     # register all intents here
@@ -32,6 +32,8 @@ class Intents:
         self.search_product = 'search_product'
         self.suggest_product = 'suggest_product'
         self.select_i = 'select_i'
+        self.select_i_remove_from_cart = 'select_i_remove_from_cart'
+        self.select_i_remove_from_compare = 'select_i_remove_from_compare'
         self.show_attributes = 'show_attributes'
         self.acknowledge = 'acknowledge'
         self.open_domain_qa = 'open_domain_qa'
@@ -49,7 +51,9 @@ class Intents:
         self.buy_cart = 'buy_cart'
         self.add_to_cart = 'add_to_cart'
         self.remove_from_cart = 'remove_from_cart'
-        self.user_preference = 'user_preference'
+        # self.user_preference = 'user_preference'  # refine query works better for this 
+        self.refine_query = 'refine_query'
+        
         self.compare_products = 'compare_products'
         self.add_for_compare = 'add_for_compare'
         self.remove_from_compare = 'remove_from_compare'
@@ -87,7 +91,6 @@ class Intents:
         self.system_response_remove_from_compare = 'system_response_remove_from_compare'
         self.started_conversation = 'started_conversation' # remove ? 
         self.in_conversation_system_response = 'in_conversation_system_response'
-        self.refine_query = 'refine_query'
         
         
         
