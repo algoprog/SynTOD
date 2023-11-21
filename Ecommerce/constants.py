@@ -1,16 +1,18 @@
+from ecom_prompts import *
 
 prompt = 'prompt'
 json_format = 'json_format'
 
-product = 'product'
+product_name = 'product'
 recipe = 'recipe'
-popo = product
+popo = product_name
 attributes = 'attributes'
 title = 'title'
 rating = 'overall'
 ratingCount = 'vote'
 
-openai_keys = ['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']
+# openai_keys = ['']
+openai_key = ''
 
 class Intents:
     # register all intents here
@@ -70,6 +72,7 @@ class Intents:
         self.option_selected = 'option_selected'
         self.shown_attributes = 'shown_attributes'
         self.show_suggestions = 'show_suggestions'
+        self.product_info = 'product_info'
         
 
         # undecided and untracked 
@@ -82,15 +85,20 @@ class Intents:
         self.no_more_clarifying_questions = 'no_more_clarifying_questions' # no need of prompt
         self.system_response = 'system_response'
 
+        self.started_conversation = 'started_conversation' # remove ? 
+        self.no_results = 'no_results'
 
-        # No need of prompts for following states:
+
+        # No need of prompts for following states: string in string => intent in intent!! 
+        # all have single prompt where conv is provided : IN_CONVERSATION_SYSTEM_PROMPT
 
         self.system_response_cart_removal = 'system_response_cart_removal'
         self.system_response_added_to_cart = 'system_response_added_to_cart'
         self.system_response_add_for_compare = 'system_response_add_for_compare'
         self.system_response_remove_from_compare = 'system_response_remove_from_compare'
-        self.started_conversation = 'started_conversation' # remove ? 
         self.in_conversation_system_response = 'in_conversation_system_response'
+        
+        
         
         
         
@@ -98,3 +106,76 @@ class Intents:
 intents = Intents()
 
 
+# intents_map = {
+
+#     # system
+#     intents.start : START_PROMPT,
+#     intents.show_results:SHOW_RESULTS_PROMPT,
+#     f"show_{intents.more_results}" : SHOW_MORE_RESULTS_PROMPT,
+#     intents.option_selected : OPTION_SELECTED_PROMPT,
+#     intents.shown_attributes : SHOWN_ATTRIBUTES_PROMPT,
+#     intents.show_suggestions : FIND_SUGGESTIONS_PROMPT,
+#     intents.system_response : SYSTEM_PROMPT,
+#     intents.in_conversation_system_response : IN_CONVERSATION_SYSTEM_PROMPT,
+#     f"prev_intent_{intents.repeat}" : SYSTEM_REPEAT_PROMPT,
+#     intents.more_results : MORE_OPTIONS_PROMPT,
+#     intents.shown_cart : SHOWN_CART_PROMPT,
+#     intents.show_comparison : SHOW_COMPARISON_PROMPT,
+#     intents.bought_cart : BOUGHT_CART_PROMPT,
+#     intents.clarifying_questions : ASK_CLARIFICATION_PROMPT,
+    
+#     intents.no_more_clarifying_questions : IN_CONVERSATION_SYSTEM_PROMPT, # no need of prompt
+    
+#     intents.product_info : SHOW_PRODUCT_PROMPT,
+    
+    
+    
+    
+#     intents.no_results : 'no_results',
+
+
+
+#     # user
+#     intents.user_start : START_PROMPT_USER,
+#     intents.search_product : SEARCH_PRODUCT_PROMPT,
+#     intents.suggest_product : SUGGEST_PRODUCT_PROMPT,
+#     intents.more_results : MORE_OPTIONS_PROMPT,
+#     intents.select_i : SELECT_I_PROMPT,
+#     intents.acknowledge : ACKNOWLEDGE_PROMPT,
+#     intents.open_domain_qa : OPEN_DOMAIN_QA_PROMPT,
+#     intents.chitchat : CHITCHAT_PROMPT,
+#     intents.subjective_qa : SUBJECTIVE_QA_PROMPT,
+#     intents.user_start : START_PROMPT_USER,
+#     intents.repeat : REPEAT_PROMPT,
+#     intents.deny : DENY_PROMPT,
+#     intents.stop : STOP_PROMPT,
+#     intents.show_cart : SHOW_CART_PROMPT,
+#     intents.buy_cart : BUY_CART_PROMPT,
+#     intents.remove_from_cart : REMOVE_FROM_CART_PROMPT,
+#     intents.remove_from_compare : REMOVE_FROM_COMPARE_PROMPT,
+#     intents.add_to_cart : ADD_TO_CART_PROMPT,
+#     intents.add_for_compare : ADD_FOR_COMPARE_PROMPT,
+#     intents.compare_products : COMPARE_PRODUCTS_PROMPT,
+#     intents.generic_product_query : USER_GENERIC_PRODUCT_PROMPT,
+#     intents.product_qa : PRODUCT_QA_PROMPT,
+#     intents.delivery_address : CHECK_DELIVERY_AVAILABILITY_PROMPT,
+#     intents.refine_query : USER_PREFERENCE_PROMPT,
+#     intents.show_attributes : SHOW_ATTRIBUTES_BEGIN_PROMPT,
+#     intents.show_attributes : ASK_ATTRIBUTES_PROMPT,
+
+# }
+
+
+'''
+Remaining prompts:
+
+
+Not necessary:
+FINISH_PRODUCT_RECOMMENDATION_PROMPT
+PERSONAL_INFORMATION_PROMPT
+DANGEROUS_PRODUCT_PROMPT
+OPEN_DOMAIN_QA_PROMPT_IN_CONVERSATION
+
+
+
+'''

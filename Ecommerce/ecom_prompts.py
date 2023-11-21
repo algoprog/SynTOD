@@ -11,7 +11,7 @@ results: [
  
 {}
 ]
-Generate a compelling response that presents the results in the most appealing order based on the provided information. Encourage the user to select a product for options like adding it to the cart, comparing, or making a purchase. Highlight only the key details to capture the user's interest, avoiding excessive details. If a result is not directly related to the query, don't include it. In case no relevant results are available, provide a friendly response and suggest the user try a different query.
+Generate a compelling response that presents the results in the most appealing order based on the provided information. Encourage the user to select a product for options like adding it to the cart, or adding for compare, or making a purchase. Highlight only the key details to capture the user's interest, avoiding excessive details. If a result is not directly related to the query, don't include it. In case no relevant results are available, provide a friendly response and suggest the user try a different query.
 
 Use this format in your response, the text should include your full taskbot response:
 
@@ -63,7 +63,7 @@ Generate a compelling response that describes the product {}. Ask the user if th
 }
 
 BOUGHT_CART_PROMPT = {
-    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory, and the user has just confirmed they are done with the shopping and want to buy the cart. Write an engaging system response for the end of the shopping. Keep it short.",
+    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory, and the user has just confirmed they are done with the shopping and want to buy the cart. Write an engaging system response for the end of the shopping experience. Keep it short.",
     "json_format": None
 }
 
@@ -130,7 +130,7 @@ START_PROMPT_USER = {
 
 
 SEARCH_PRODUCT_PROMPT = {
-    "prompt": """You are a human user talking to a voice-based taskbot that helps with selling products on an ecommerce platform. You want to find products for '{}', write ONE single or multi sentence short prompt to the taskbot. Use simple human-like language. Some examples (don't rely only on these):
+    "prompt": """You are a human user talking to a taskbot that helps with selling products on an ecommerce platform. You want to find products for '{}', write ONE single or multi sentence short prompt to the taskbot. Use simple human-like language. Some examples (don't rely only on these):
 
 i want to buy x
 can you help me to get x
@@ -140,11 +140,13 @@ x
 help me buy a x
 x recommendations
 
+Give query too in the response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language
+
 Use this format in your response:
 
-{{\"text\": ..., \"product_name\": ...}}""",
+{{\"text\": ..., \"product_name\": ...,  \"query\": ...}}""",
 
-    "json_format": "{\"text\": ..., \"product_name\": ...}"
+    "json_format": "{\"text\": ..., \"product_name\": ..., \"query\": ...}"
 }
 
 SUGGEST_PRODUCT_PROMPT = {
@@ -161,7 +163,7 @@ Use simple diverse human-like language and the following format in your response
 
 # selling products on an ecommerce platform
 MORE_OPTIONS_PROMPT = {
-    "prompt": """You are a human user already talking to a voice-based taskbot that helps with selling products on an ecommerce platform. You got some results but want to find more products/results, write ONE single or multi sentence short prompt to the taskbot. Use simple diverse human-like language, no quotes. Write a statement or question. Examples:
+    "prompt": """You are a human user already talking to a taskbot that helps with selling products on an ecommerce platform. You got some results but want to find more products/results, write ONE single or multi sentence short prompt to the taskbot. Use simple diverse human-like language, no quotes. Write a statement or question. Examples:
 show me more options
 I want to see more results
 more results
@@ -189,7 +191,7 @@ Don't just copy the examples, be creative. You don't need to mention the number 
 
 # 
 SHOW_ATTRIBUTES_BEGIN_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write 3 prompts to the bot confirming to start describing the product's attributes for product {}. One in each line, no enumeration, use simple diverse human-like language, no quotes. Examples:
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a 3 prompts to the bot confirming to start describing the product's attributes for product {}. One in each line, no enumeration, use simple diverse human-like language, no quotes. Examples:
 
 show me the product's features
 what's the products USP
@@ -211,7 +213,7 @@ ACKNOWLEDGE_PROMPT = {
 
 
 PRODUCT_QA_PROMPT = {
-    "prompt": "You are a human user already talking to a bot that helps with selling products on an ecommerce platform and you are currently in conversation {}. Write a prompt to the bot asking a question about the current product or the product in general. Don't just ask about some straight forward questions, ask things like specifications of the product, features, etc. Don't mention attribute numbers. Give only the question in your response.\Product info:\n{}",
+    "prompt": "You are a human user already talking to a bot that helps with selling products on an ecommerce platform and you are currently in conversation. Write a prompt to the bot asking a question about the current product or the product in general. Don't just ask about some straight forward questions, ask things like specifications of the product, features, etc. Don't mention attribute numbers. Give only the question in your response.\Product info:\n{}",
     "json_format": None
 }
 
@@ -273,7 +275,7 @@ DENY_PROMPT = {
 }
 
 BUY_CART_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and have added few items in cart. Write a response to ask bot to buy the cart. Examples: I would like to buy, proceed for checkout, ready to make the purchase. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
+    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and have added few items in cart. Write a response to ask bot to buy the cart. Examples: I would like to buy, proceed for checkout, I'm ready to make the purchase. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
     "json_format": None
 }
 
@@ -325,11 +327,11 @@ REMOVE_FROM_COMPARE_PROMPT = {
 
 
 USER_GENERIC_PRODUCT_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a generic product prompt to the bot. Examples I need a laptop, show me a shirt, I am shopping for xmas gift.  Give only the text in your response nothing else. No quotes or enumeration.", 
+    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a generic product prompt to the bot. Prompt should not be specific as bot should ask you a clarifying question in return. Product : {}. Examples I need a laptop, show me a shirt, I am shopping for xmas gift.  Give only the text in your response nothing else. No quotes or enumeration. \nBot: {}", 
     "json_format": None
 }
 
 CHECK_DELIVERY_AVAILABILITY_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered in a location. Examples: Is it available for delivery in pincode x, Could it be delivered to x. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
+    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered in a location in United States. Examples: Is it available for delivery in pincode x, Could it be delivered to x. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
     "json_format": None
 }

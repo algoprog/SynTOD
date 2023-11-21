@@ -13,9 +13,12 @@ from ecom_path_generation import TaskPathGenerator
 
 from ecom_prompts import *
 from ecom_retriever import Retriever
+from constants import *
 
-openai.api_key = ""
+openai.api_key = openai_key
 lock = threading.Lock()
+
+inventory_file = "sampled_example_top_50_4200.jsonl"
 
 def write_error(error):
     with lock:
@@ -47,15 +50,13 @@ def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
     return None, 0
 
 
-def generate_conversation(task_name):
+def generate_conversation(task_name): 
     prompt = f"""Simulate a conversation between a taskbot system and a user about {task_name}. 
-- The taskbot helps users with recipes or tasks. 
-- First the system introduces itself, then the user asks for help about a recipe or task. 
-- System provides 3 relevant options, user selects one, system responds to the choice and guides the user step by step after user finishes every step. 
-- Sometimes user asks in-task or open-domain questions in between, or even chitchats. 
-- Sometimes the system mentions some relevant fun facts.
+- The taskbot helps users with selling products in an inventory. 
+- First the system introduces itself, then the user asks for help about a product. 
+- System provides 3 relevant options, user selects one, system responds to the choice and guides the user for buying that product. 
+- Sometimes user asks product related or open-domain questions in between, or even chitchats. 
 - In the end the user may thank the taskbot, taskbot asks if he has any other question, user might ask something related to the ask or open-domain and eventually the conversation ends. 
-- Remember that the taskbot should guide the user step by step after getting confirmation from the user. Only show one step at a time. 
 
 Use this format:
 
@@ -133,13 +134,12 @@ class DataGenerator:
     def __init__(self) -> None:
         self.retriever = Retriever()
 
-    def task_to_string(self, task, current_step=None):
-        steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(task['steps'])])
-        return f"title: {task['title']}, description: {task['description']}, minutes: {task['minutes']}, rating: {task['rating']} ({task['ratingCount']}), ingredients: [{', '.join(task['ingredients'])}], current step: {current_step}, steps: [{steps_str}]"
+    def product_to_string(self, product):
+        # steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(task['steps'])])
+        return f"title: {product['title']}, description: {product['description']}, overall: {product['overall']}, vote: ({product['vote']}), attributes: [{', '.join(product['attributes'])} ]"
 
     def generate_response(self, intent, next_intent=None, prev_intent=None, args=None):
-        #print("\nintent:", intent)
-
+        
         total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
         temperature = 1.0
         json_format = None
@@ -150,115 +150,87 @@ class DataGenerator:
         suggestions = None
         returned_intent = intent
         prompt = None
-        step = None
-        if 0 < args['step'] <= len(args['recipe']['steps']):
-            prev_step_text = args['recipe']['steps'][args['step']-1]
-        else:
-            prev_step_text = '-'
+        
 
-        if intent == 'start':
+        if intent == intents.start:  
             prompt = START_PROMPT['prompt']
             #model = 'gpt-4'
-        elif intent == 'search_recipe':
-            prompt = SEARCH_RECIPE_PROMPT['prompt'].format(args['recipe']['query'])
-            json_format = SEARCH_RECIPE_PROMPT['json_format']
-            model = 'gpt-4'
-        elif intent == 'suggest_recipe':
-            recipe = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}]"
-            prompt = SUGGEST_RECIPE_PROMPT['prompt'].format(recipe)
-            json_format = SUGGEST_RECIPE_PROMPT['json_format']
-            model = 'gpt-4'
-        elif intent == 'show_results':
+        elif intent == intents.search_product:
+            prompt = SEARCH_PRODUCT_PROMPT['prompt'].format(args['product'])
+            json_format = SEARCH_PRODUCT_PROMPT['json_format']
+            # model = 'gpt-4'
+        elif intent == intents.suggest_product:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = SUGGEST_PRODUCT_PROMPT['prompt'].format(product_info)
+            json_format = SUGGEST_PRODUCT_PROMPT['json_format']
+            # model = 'gpt-4'
+        elif intent == intents.show_results :
             #model = 'gpt-4'
             temperature = 0.0
-            recipe_id = args['recipe']['id']
-            # retrieve 20 results, remove the current recipe id doc, and get the next 2-3 results
+            product_id = args['product']['id']
+            # retrieve 20 results, remove the current product id doc, and get the next 2-3 results
             results = self.retriever.search(args['query'], limit=20)
 
             #print("\nretriever results:", ', '.join([r[0]['title'] for r in results]))
 
-            if next_intent == 'select_i':
-                results = [r[0] for r in results if r[0]['id'] != recipe_id][(args['page']-1)*2 : args['page']*2]
+            if next_intent == intents.select_i:
+                results = [r[0] for r in results if r[0]['id'] != product_id][(args['page']-1)*2 : args['page']*2]
                 # add the current recipe id doc to the results in random position k
                 golden_result_position = random.randint(0, len(results))
-                results.insert(golden_result_position, args['recipe'])
+                results.insert(golden_result_position, args['product'])
                 #print('results offsets:', (args['page']-1)*2, args['page']*2)
             else:
-                results = [r[0] for r in results if r[0]['id'] != recipe_id][(args['page']-1)*3 : args['page']*3]
+                results = [r[0] for r in results if r[0]['id'] != product_id][(args['page']-1)*3 : args['page']*3]
                 #print('results offsets:', (args['page']-1)*3, args['page']*3)
             
             search_results = results
             if len(search_results) == 0:
-                returned_intent = 'no_results'
+                returned_intent = intents.no_results
 
             # format the results
-            results = [f"id: {i+1}, {r['title']}, {r['minutes']} minutes, rating: {r['rating']} ({r['ratingCount']}), {r['description']}, ingredients: [{', '.join(r['ingredients'])}]\n" for i, r in enumerate(results)]
+            results = [f"id: {i+1}, {r['title']}, {r['description']}, attributes: [{', '.join(r['attributes'])}]\n" for i, r in enumerate(results)] # , overall: {r['overall']} ({r['vote']})
             results = '\n'.join(results)
 
-            if prev_intent == 'more_results':
+            if prev_intent == intents.more_results :
                 prompt_template = SHOW_MORE_RESULTS_PROMPT
             else:
                 prompt_template = SHOW_RESULTS_PROMPT
 
-            prompt = prompt_template['prompt'].format(args['recipe']['query'], results)
+            prompt = prompt_template['prompt'].format(args['product']['query'], results)
             json_format = prompt_template['json_format']
-        elif intent == 'more_results':
-            prompt = MORE_OPTIONS_PROMPT['prompt'].format(args['recipe']['query'])
+        elif intent == intents.more_results :
+            prompt = MORE_OPTIONS_PROMPT['prompt'].format(args['product']['query'])
             json_format = MORE_OPTIONS_PROMPT['json_format']
             temperature = 1.2
-        elif intent == 'select_i':
-            model = 'gpt-4'
-            results = [f"id: {i+1}, {d['title']}, {d['minutes']} minutes, rating: {d['rating']} ({d['ratingCount']}), {d['description']}" for i, d in enumerate(args['results'])]
+        elif intent == intents.select_i:
+            # model = 'gpt-4'
+            results = [f"id: {i+1}, {d['title']}, rating: {d['overall']} ({d['vote']}), {d['description']}" for i, d in enumerate(args['results'])]
             results = '\n'.join(results)
             prompt = SELECT_I_PROMPT['prompt'].format(args['golden_result_position']+1, results)
             json_format = SELECT_I_PROMPT['json_format']
             multi_output = True
-        elif intent == 'option_selected':
-            prompt = OPTION_SELECTED_PROMPT['prompt'].format(args['recipe']['title'], args['recipe']['description'])
+        elif intent == intents.option_selected:
+            prompt = OPTION_SELECTED_PROMPT['prompt'].format(args['product']['title'], args['product']['description'])
             json_format = OPTION_SELECTED_PROMPT['json_format']
-        elif intent == 'begin_task':
-            prompt = BEGIN_TASK_PROMPT['prompt']
-            json_format = BEGIN_TASK_PROMPT['json_format']
-            multi_output = True
-        elif intent == 'started_task':
-            model = 'gpt-4'
-            prompt = STARTED_TASK_PROMPT['prompt'].format(args['recipe']['title'], args['recipe']['steps'][0])
-            json_format = STARTED_TASK_PROMPT['json_format']
-        elif 'goto_step' in intent:
-            model = 'gpt-4'
-            step = int(intent.split('_')[-1])
-            returned_intent = 'goto_step'
-            prompt = GOTO_STEP_PROMPT['prompt'].format(step)
-            json_format = GOTO_STEP_PROMPT['json_format']
-            multi_output = True
-        elif intent == 'show_step':
+        
+        elif intent == intents.shown_attributes :
             #model = 'gpt-4'
-            steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(args['recipe']['steps'])])
-            recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}], steps: [{steps_str}]"
-            prompt = SHOW_STEP_PROMPT['prompt'].format(recipe_info, args['step'])
-            json_format = SHOW_STEP_PROMPT['json_format']
-        elif intent == 'acknowledge_step':
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]]"
+            prompt = SHOWN_ATTRIBUTES_PROMPT['prompt'].format(product_info)
+            json_format = SHOWN_ATTRIBUTES_PROMPT['json_format']
+        elif intent == intents.show_attributes :
             #model = 'gpt-4'
-            prompt = ACKNOWLEDGE_STEP_PROMPT['prompt'].format(args['recipe']['title'], prev_step_text)
-            json_format = ACKNOWLEDGE_STEP_PROMPT['json_format']
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]]"
+            prompt = SHOW_ATTRIBUTES_BEGIN_PROMPT['prompt'].format(product_info)
+            json_format = SHOW_ATTRIBUTES_BEGIN_PROMPT['json_format']
+        
+        elif intent == intents.acknowledge:
+            # model = 'gpt-4'
+            prompt = ACKNOWLEDGE_PROMPT['prompt']
+            json_format = ACKNOWLEDGE_PROMPT['json_format']
             multi_output = True
-        elif intent == 'acknowledge_task':
-            model = 'gpt-4'
-            prompt = ACKNOWLEDGE_TASK_PROMPT['prompt']
-            json_format = ACKNOWLEDGE_TASK_PROMPT['json_format']
-            multi_output = True
-        elif intent == 'next_step':
-            #model = 'gpt-4'
-            prompt = NEXT_STEP_PROMPT['prompt'].format(args['recipe']['title'], prev_step_text)
-            json_format = NEXT_STEP_PROMPT['json_format']
-            multi_output = True
-            temperature = 0.0
-        elif intent == 'done_step':
-            #model = 'gpt-4'
-            prompt = DONE_STEP_PROMPT['prompt'].format(args['recipe']['title'], prev_step_text)
-            json_format = DONE_STEP_PROMPT['json_format']
-            multi_output = True
-        elif intent == 'show_suggestions':
+        
+        elif intent in [intents.show_suggestions, intents.shown_cart, intents.show_comparison] :
             #model = 'gpt-4'
             topk = 10
             prompt = FIND_SUGGESTIONS_PROMPT['prompt'].format(topk, args['query'])
@@ -275,25 +247,29 @@ class DataGenerator:
             i = 1
             for q in ungrounded_suggestions:
                 d, score = self.retriever.search(q, limit=1)[0]
-                if score > 0.4 and d['id'] != args['recipe']['id'] and d['id'] not in added_ids:
+                if score > 0.4 and d['id'] != args['product']['id'] and d['id'] not in added_ids:
                     grounded_suggestions.append(d)
                     added_ids.add(d['id'])
                     i += 1
 
-            # retrieve up to 10 results, remove the current recipe id doc, and get the next 2-3 results
-            if next_intent == 'select_i':
+            # retrieve up to 10 results, remove the current product id doc, and get the next 2-3 results
+            if next_intent == intents.select_i :
                 grounded_suggestions = grounded_suggestions[(args['page']-1)*2 : args['page']*2]
                 golden_result_position = random.randint(0, len(grounded_suggestions))
-                grounded_suggestions.insert(golden_result_position, args['recipe'])
+                grounded_suggestions.insert(golden_result_position, args['product'])
             else:
                 grounded_suggestions = grounded_suggestions[(args['page']-1)*3 : args['page']*3]
             
             search_results = grounded_suggestions
 
-            grounded_suggestions = [f"id: {j+1}, {d['title']}, {d['minutes']} minutes, rating: {d['rating']} ({d['ratingCount']}), {d['description']}" for j, d in enumerate(grounded_suggestions)]
-            
-            if prev_intent == 'more_options':
+            grounded_suggestions = [f"id: {j+1}, {d['title']}, {d['description']}" for j, d in enumerate(grounded_suggestions)] # rating: {d['overall']} ({d['vote']}), 
+            # may need to handle grounded suggestions for compare and cart list !!!
+            if prev_intent == intents.more_options:
                 prompt_template = SHOW_MORE_RESULTS_PROMPT
+            elif prev_intent == intents.show_cart :
+                prompt = SHOWN_CART_PROMPT['prompt']
+            elif prev_intent == intents.compare_products :
+                prompt = SHOW_COMPARISON_PROMPT['prompt']
             else:
                 prompt_template = SHOW_RESULTS_PROMPT
 
@@ -301,122 +277,145 @@ class DataGenerator:
             json_format = prompt_template['json_format']
 
             if len(search_results) == 0:
-                returned_intent = 'no_results'
-        elif intent == 'in_task_qa':
-            task_info = self.task_to_string(args['recipe'], args['step'])
-            prompt = IN_TASK_QA_PROMPT['prompt'].format(args['step'], task_info)
-            json_format = IN_TASK_QA_PROMPT['json_format']
-            #model = 'gpt-4'
-        elif intent == 'open_domain_qa':
-            task_info = self.task_to_string(args['recipe'], args['step'])
-            if args['step'] == 0:
-                prompt = OPEN_DOMAIN_QA_PROMPT['prompt']
-                json_format = OPEN_DOMAIN_QA_PROMPT['json_format']
-            else:
-                prompt = OPEN_DOMAIN_QA_PROMPT_IN_TASK['prompt'].format(args['step'], task_info)
-                json_format = OPEN_DOMAIN_QA_PROMPT_IN_TASK['json_format']
-            #model = 'gpt-4'
-        elif intent == 'chitchat':
+                returned_intent = intents.no_results
+        
+        elif intent == intents.open_domain_qa:
+            
+            prompt = OPEN_DOMAIN_QA_PROMPT['prompt']
+            json_format = OPEN_DOMAIN_QA_PROMPT['json_format']
+        
+        elif intent == intents.chitchat :
             prompt = CHITCHAT_PROMPT['prompt']
             json_format = CHITCHAT_PROMPT['json_format']
             #model = 'gpt-4'
-        elif intent == 'offense':
-            prompt = OFFENSE_PROMPT['prompt']
-            json_format = OFFENSE_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'legal_advice':
-            prompt = LEGAL_ADVICE_PROMPT['prompt']
-            json_format = LEGAL_ADVICE_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'financial_advice':
-            prompt = FINANCIAL_ADVICE_PROMPT['prompt']
-            json_format = FINANCIAL_ADVICE_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'medical_advice':
-            prompt = MEDICAL_ADVICE_PROMPT['prompt']
-            json_format = MEDICAL_ADVICE_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'dangerous_task':
-            prompt = DANGEROUS_TASK_PROMPT['prompt']
-            json_format = DANGEROUS_TASK_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'personal_information':
-            prompt = PERSONAL_INFORMATION_PROMPT['prompt']
-            json_format = PERSONAL_INFORMATION_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'suicide_attempt':
-            prompt = SUICIDE_ATTEMPT_PROMPT['prompt']
-            json_format = SUICIDE_ATTEMPT_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'subjective_qa':
+        
+        
+        elif intent == intents.subjective_qa :
             prompt = SUBJECTIVE_QA_PROMPT['prompt']
             json_format = SUBJECTIVE_QA_PROMPT['json_format']
             multi_output = True
-            model = 'gpt-4'
-        elif intent == 'set_timer':
-            SET_TIMER_PROMPT = random.choice([SET_TIMER_PROMPT_1, SET_TIMER_PROMPT_2, SET_TIMER_PROMPT_3])
-            prompt = SET_TIMER_PROMPT['prompt']
-            json_format = SET_TIMER_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'user_start':
+            # model = 'gpt-4'
+        
+        elif intent == intents.user_start:
             prompt = START_PROMPT_USER['prompt']
             json_format = START_PROMPT_USER['json_format']
             multi_output = True
-        elif intent == 'no_more_steps':
-            recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['title']}"
-            prompt = NO_MORE_STEPS_PROMPT['prompt'].format(recipe_info)
-            json_format = NO_MORE_STEPS_PROMPT['json_format']
+        
             #model = 'gpt-4'
-        elif intent == 'finish_task':
-            prompt = FINISH_TASK_PROMPT['prompt']
-            json_format = FINISH_TASK_PROMPT['json_format']
-            multi_output = True
-            #model = 'gpt-4'
-        elif intent == 'show_ingredients':
-            prompt = SHOW_INGREDIENTS_PROMPT['prompt']
-            json_format = SHOW_INGREDIENTS_PROMPT['json_format']
-            multi_output = True
-            model = 'gpt-4'
-        elif intent == 'repeat':
+        
+        elif intent == intents.repeat :
             prompt = REPEAT_PROMPT['prompt']
             json_format = REPEAT_PROMPT['json_format']
             multi_output = True
-            model = 'gpt-4'
-        elif intent == 'deny':
+            # model = 'gpt-4'
+        elif intent == intents.deny :
             prompt = DENY_PROMPT['prompt'].format(args['bot'])
             json_format = DENY_PROMPT['json_format']
-            model = 'gpt-4'
-        elif intent == 'stop':
+            # model = 'gpt-4'
+        elif intent == intents.stop :
             prompt = STOP_PROMPT['prompt']
             json_format = STOP_PROMPT['json_format']
-            model = 'gpt-4'
-        elif intent == 'task_complete':
-            prompt = TASK_COMPLETE_PROMPT['prompt']
-            json_format = TASK_COMPLETE_PROMPT['json_format']
-            model = 'gpt-4'
-        elif 'system_response' in intent:
-            if prev_intent in ['open_domain_qa', 'in_task_qa', 'show_ingredients']:
-                model = 'gpt-4'
-            if prev_intent == 'show_ingredients':
-                prompt = DISPLAY_INGREDIENTS_PROMPT['prompt'].format('\n'.join(args['recipe']['ingredients']))
-            elif prev_intent in ['open_domain_qa', 'deny', 'set_timer', 'chitchat', 'offense', 'legal_advice', 
-                               'financial_advice', 'medical_advice', 'dangerous_task', 'personal_information', 
-                               'suicide_attempt', 'subjective_qa']:
+            # model = 'gpt-4'
+        
+        elif intents.system_response in intent: # string in a string
+            # if prev_intent in [intents.open_domain_qa, intents.product_qa, intents.shown_attributes]:
+            #     model = 'gpt-4'
+            if prev_intent == intents.shown_attributes:
+                prompt = SHOWN_ATTRIBUTES_PROMPT['prompt'].format('\n'.join(args['product'][attributes]))
+                # json_format = SHOWN_ATTRIBUTES_PROMPT['json_format']
+            elif prev_intent in [intents.open_domain_qa, intents.deny, intents.chitchat, intents.dangerous_product, intents.subjective_qa]:
                 prompt = SYSTEM_PROMPT['prompt'].format(args['user'])
-            elif prev_intent in ['in_task_qa', 'show_ingredients']:
-                steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(args['recipe']['steps'])])
-                recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}], steps: [{steps_str}]"
-                prompt = IN_TASK_SYSTEM_PROMPT['prompt'].format(args['step'], recipe_info, args['user'])
-            elif prev_intent == 'repeat':
+            elif prev_intent in [intents.product_qa, intents.show_attributes, intents.remove_from_cart, intents.remove_from_compare, intents.add_for_compare, intents.add_to_cart]:
+                product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, {attributes}: [{', '.join(args['product'][attributes])}]]"
+                prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format( product_info, args['user'])
+            
+            elif prev_intent == intents.repeat:
                 prompt = SYSTEM_REPEAT_PROMPT['prompt'].format(args['bot'], args['user'])
+        
+        elif intent == intents.show_cart : 
+            prompt = SHOW_CART_PROMPT['prompt'].format(args['bot'])
+            # json_format = SEARCH_PRODUCT_PROMPT['json_format']
+            # model = 'gpt-4'
+        
+        elif intent == intents.buy_cart:
+            prompt = BUY_CART_PROMPT['prompt'].format(args['bot'])
+            
+            # model = 'gpt-4'
+        elif intent == intents.add_to_cart:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = ADD_TO_CART_PROMPT['prompt'].format(product_info,args['bot'])
+            
+            # model = 'gpt-4'
+        elif intent == intents.add_for_compare:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = ADD_FOR_COMPARE_PROMPT['prompt'].format(args['product'],args['bot'])
+            
+            # model = 'gpt-4'
+        elif intent == intents.remove_from_compare:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = REMOVE_FROM_COMPARE_PROMPT['prompt'].format(args['product'],args['bot'])
+            
+            # model = 'gpt-4'
+        elif intent == intents.remove_from_cart:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = REMOVE_FROM_CART_PROMPT['prompt'].format(args['product'],args['bot'])
+            
+            # model = 'gpt-4'
+
+        elif intent == intents.generic_product_query:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = USER_GENERIC_PRODUCT_PROMPT['prompt'].format(args['product'],args['bot'])
+            
+            # model = 'gpt-4'
+
+        elif intent == intents.product_qa:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = PRODUCT_QA_PROMPT['prompt'].format(args['product'])
+            
+            # model = 'gpt-4'
+        elif intent == intents.compare_products:
+            # product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            title = 'title'
+            description = 'description'
+            delm = ', '
+
+            prompt = COMPARE_PRODUCTS_PROMPT['prompt'].format(f"[{delm.join([ f'title: {product[title]}, description: {product[description]}, attributes: [{delm.join(product[attributes])}]' for product in args['compare_list']])}]")
+            
+            # model = 'gpt-4'
+        elif intent == intents.delivery_address:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = CHECK_DELIVERY_AVAILABILITY_PROMPT['prompt'].format(product_info)
+            # model = 'gpt-4'
+        
+        elif intent == intents.refine_query:
+            product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prompt = USER_PREFERENCE_PROMPT['prompt'].format(product_info)
+            # model = 'gpt-4'
+        
+        elif intent == intents.more_results :
+            prompt = MORE_OPTIONS_PROMPT['prompt']
+        
+        elif intent == intents.bought_cart :
+            prompt = BOUGHT_CART_PROMPT['prompt']
+        
+        elif intent == intents.bought_cart :
+            prompt = BOUGHT_CART_PROMPT['prompt']
+        
+        elif intent == intents.clarifying_questions :
+            prompt = ASK_CLARIFICATION_PROMPT['prompt'].format(args['user'])
+        
+        elif intent == intents.no_more_clarifying_questions :
+            prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format( product_info, args['user'])
+
+        elif intent == intents.show_attributes :
+            prompt = ASK_ATTRIBUTES_PROMPT['prompt']
+
+        elif intent == intents.product_info :
+            prompt = SHOW_PRODUCT_PROMPT['prompt'].format( product_info)
+        
+        
+
+
         
         #print(f"\n*** prompt ***\n{prompt}\n***\n")
 
@@ -452,17 +451,17 @@ class DataGenerator:
         state = {'search_results': search_results,
                  'golden_result_position': golden_result_position,
                  'intent': returned_intent,
-                 'step': step,
+                 
                  'suggestions': suggestions,
                  'model': model}
 
         return response, total_used_tokens, state, prompt
 
-    def generate_conversation(self, task, max_length=40):
-        num_steps = len(task['steps'])
-
+    def generate_conversation(self, product, max_length=30):
+        
+        
         path_generator = TaskPathGenerator()
-        path = path_generator.generate_path(max_length=max_length, num_steps=num_steps)
+        path = path_generator.generate_path(max_length=max_length)
         path_length = len(path)
 
         conversation = []
@@ -470,15 +469,15 @@ class DataGenerator:
         total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
 
         results_page = 1
-        current_step = 0
+        
         search_results = []
-        query = task['query']
+        query = None
         golden_result_position = None
         prev_bot_response = ''
         prev_user_response = ''
 
         for i, intent in enumerate(path):
-            if intent == 'end':
+            if intent == intents.stop:
                 continue
             if i % 2 == 0:
                 role = 'system'
@@ -488,41 +487,39 @@ class DataGenerator:
                 next_intent = path[i + 1]
             else:
                 next_intent = None
-            
+
             response, used_tokens, state, prompt = self.generate_response(intent, next_intent=next_intent, prev_intent=prev_intent, 
-                                                           args={'recipe': task, 
+                                                           args={'product': product, 
                                                                  'query': query,
                                                                  'page': results_page, 
-                                                                 'step': current_step,
                                                                  'results': search_results,
                                                                  'golden_result_position': golden_result_position,
                                                                  'bot': prev_bot_response,
                                                                  'user': prev_user_response})
             if response is None:
-                return conversation, total_used_tokens, task['id'], path
+                return conversation, total_used_tokens, product['id'], path
             
             if isinstance(response, str):
                 response = {'text': response}
             
-            if intent == 'more_results':
+            if intent == intents.more_results:
                 results_page += 1
-            elif intent in ['next_step', 'done_step', 'acknowledge_step', 'begin_task', 'acknowledge_task']:
-                current_step += 1
-            elif intent in ['search_recipe', 'suggest_recipe']:
-                current_step = 0
+            
+            elif intent in [intents.search_product, intents.suggest_product, intents.refine_query]: # in search queries
                 results_page = 1
-            elif intent in ['show_results', 'show_suggestions'] and len(response['recipe_ids']) == 0:
-                intent = 'no_results'
+            elif intent in [intents.show_results, intents.show_suggestions] and len(response['product_ids']) == 0:
+                intent = intents.no_results
 
             intent = state['intent']
             prev_intent = intent
             golden_result_position = state['golden_result_position']
-            if state['step'] != None:
-                current_step = state['step']
+            
             if state['suggestions'] != None:
                 response['suggestions'] = state['suggestions']
             if state['search_results'] != None:
                 search_results = state['search_results']
+            
+            # getting query from response 
             if 'query' in response:
                 query = response['query']
 
@@ -531,11 +528,10 @@ class DataGenerator:
             response['model'] = state['model']
             response['prompt'] = prompt
 
-            if intent in ['show_results', 'show_suggestions']:
+            if intent in [intents.show_results, intents.show_suggestions ]:
                 response['results'] = [r['id'] for r in search_results]
-                response['results_str'] = '\n'.join([f"id: {j+1}, {d['title']}, {d['minutes']} minutes, rating: {d['rating']} ({d['ratingCount']}), {d['description']}" for j, d in enumerate(search_results)])
-            elif intent in ['next_step', 'done_step', 'acknowledge_step', 'begin_task', 'acknowledge_task', 'goto_step']:
-                response['step'] = current_step
+                response['results_str'] = '\n'.join([f"id: {j+1}, {d['title']}, {d['description']}" for j, d in enumerate(search_results)])
+            
             elif intent == 'select_i':
                 response['selection'] = golden_result_position+1
 
@@ -550,38 +546,38 @@ class DataGenerator:
             total_used_tokens['gpt-3.5-turbo'] += used_tokens['gpt-3.5-turbo']
             total_used_tokens['gpt-4'] += used_tokens['gpt-4']
             
-            if intent == 'no_results':
+            if intent == intents.no_results:
                 break
         
-        return conversation, total_used_tokens, task['id'], path
+        return conversation, total_used_tokens, product['id'], path
 
     def generate_conversations(self, limit=1):
         added_ids = set()
-        with open("data/conversations.jsonl") as f:
-            for line in f:
-                d = json.loads(line.rstrip('\n'))
-                added_ids.add(d['id'])
+        # with open("data/conversations.jsonl") as f:
+        #     for line in f:
+        #         d = json.loads(line.rstrip('\n'))
+        #         added_ids.add(d['id'])
         
-        recipes = []
-        with open('data/corpus_simple.jsonl', 'r') as file:
+        products = []
+        with open(inventory_file, 'r') as file:
             for line in file:
                 d = json.loads(line)
                 if d['id'] not in added_ids:
-                    recipes.append(d)
+                    products.append(d)
 
-        o = open('data/conversations_2.jsonl', 'w+')
+        o = open('data/conversations.jsonl', 'w+')
         total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
         completed = 0
         
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = []
-            for recipe in recipes[:limit]:
-                futures.append(executor.submit(self.generate_conversation, recipe))
+            for prod in products[:limit]:
+                futures.append(executor.submit(self.generate_conversation, prod))
             for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
-                conversation, used_tokens, recipe_id, path = future.result()
+                conversation, used_tokens, product_id, path = future.result()
                 with lock:
                     if len(conversation) > 0:
-                        o.write(json.dumps({"id": recipe_id, "path": path, "conversation": conversation}) + "\n")
+                        o.write(json.dumps({"id": product_id, "path": path, "conversation": conversation}) + "\n")
                         o.flush()
                 total_used_tokens['gpt-3.5-turbo'] += used_tokens['gpt-3.5-turbo']
                 total_used_tokens['gpt-4'] += used_tokens['gpt-4']
@@ -595,31 +591,4 @@ class DataGenerator:
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=4000)
-
-    # r = generator.retriever.search('dumplings', limit=3)
-    # r = [d[0]['title'] for d in r]
-    # print(r)
-    # exit()
-
-    # task = {'title': 'Chicken and Dumplings', 
-    #         'query': 'dumplings',
-    #         'id': 'chicken_and_dumplings',
-    #         'description': 'This is a recipe for chicken and dumplings.', 
-    #         'minutes': 60,
-    #         'rating': 4.5,
-    #         'ratingCount': 100,
-    #         'ingredients': ['1 lb chicken', '1 lb dumplings'],
-    #         'steps': ['Boil chicken', 'Add dumplings', 'Eat']}
-    
-    # response, tokens = generator.generate_response(intent='task_complete', 
-    #                                                args={'bot': 'now boil some water and add the chicken and dumplings to it', 
-    #                                                      'step': 2, 'recipe': task})
-    
-    # conversation, total_used_tokens = generator.generate_conversation(task)
-
-    # print("Conversation:")
-    # for c in conversation:
-    #     print(c)
-
-    # print("total tokens:", total_used_tokens)
+    generator.generate_conversations(limit=50)

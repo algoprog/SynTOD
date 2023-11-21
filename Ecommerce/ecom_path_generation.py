@@ -77,7 +77,7 @@ class TaskPathGenerator:
                     
                                         ]
 
-        ecom_intents_after_selection = [(intents.product_qa, 0.2 * (1 - ci_weight)),
+        ecom_intents_after_selection = [(intents.product_info, 0.2 * (1 - ci_weight)),
                                         (intents.show_attributes, 0.25 * (1 - ci_weight)),
                                         (intents.add_to_cart, 0.3 * (1 - ci_weight)),
                                         (intents.add_for_compare, 0.20 * (1 - ci_weight)),		
@@ -118,9 +118,14 @@ class TaskPathGenerator:
 
                     intents.in_conversation_system_response: ecomm_in_conversation_intents,
                     
-                    intents.show_suggestions : [(intents.select_i, 1 * 0.8 * (1 - ci_weight)),
-                                        (intents.more_results, 1 * 0.15 * (1 - ci_weight)),
-                                        (intents.refine_query, 1.0 * 0.05 * (1 - ci_weight)),
+                    # intents.show_suggestions : [(intents.select_i, 1 * 0.8 * (1 - ci_weight)),
+                    #                     (intents.more_results, 1 * 0.15 * (1 - ci_weight)),
+                    #                     (intents.refine_query, 1.0 * 0.05 * (1 - ci_weight)),
+                    #                     ],
+                    intents.product_info : [
+                                        (intents.add_to_cart, 0.5 * (1 - ci_weight)),
+                                        (intents.add_for_compare, 0.4 * (1 - ci_weight)),
+                                        (intents.acknowledge, 0.1*(1-ci_weight))
                                         ],
 
                     intents.system_response_cart_removal : [(intents.acknowledge, 0.3),(intents.suggest_product, 0.7)],
@@ -132,7 +137,7 @@ class TaskPathGenerator:
                     # intents.started_conversation : [(intents.start, 1.0)],
                     
                     
-                    intents.suggest_product: [(intents.show_suggestions, 1.0)],
+                    intents.suggest_product: [(intents.show_results, 1.0)],
                     
                     intents.show_attributes: [(intents.shown_attributes, 1.0)],
                     intents.generic_product_query:[(intents.clarifying_questions, 1.0 )],  
@@ -214,7 +219,7 @@ class TaskPathGenerator:
                         intents.option_selected,
                         intents.system_response,
                         intents.in_conversation_system_response,
-                        intents.show_suggestions,
+                        # intents.show_suggestions,
                         intents.system_response_cart_removal ,
                         intents.system_response_added_to_cart,
                         intents.system_response_add_for_compare ,

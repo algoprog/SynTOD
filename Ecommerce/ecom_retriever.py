@@ -130,7 +130,7 @@ class Retriever:
     def __init__(self):
         self.documents = []
         titles = []
-        with open('data/corpus_simple_s.jsonl', 'r') as f:
+        with open('data/sampled_example_top_50_4200.jsonl', 'r') as f:
             for line in f:
                 d = json.loads(line)
                 self.documents.append(d)
