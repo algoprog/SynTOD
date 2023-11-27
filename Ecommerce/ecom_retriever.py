@@ -130,7 +130,7 @@ class Retriever:
     def __init__(self):
         self.documents = []
         titles = []
-        with open('data/sampled_example_top_50_4200.jsonl', 'r') as f:
+        with open('data/product_catalog.jsonl', 'r') as f:
             for line in f:
                 d = json.loads(line)
                 self.documents.append(d)
@@ -141,9 +141,9 @@ class Retriever:
 
         print("Start Indexing...")
         self.dr = DenseRetriever(self.model, use_gpu=False)
-        #self.dr.create_index_from_documents(titles)
+        # self.dr.create_index_from_documents(titles)
         self.dr.create_index_from_vectors('data/corpus_vectors.pkl')
-        #self.dr.save_index(vectors_path='data/corpus_vectors.pkl')
+        # self.dr.save_index(vectors_path='data/corpus_vectors.pkl')
 
         print("Indexing Complete.")
 
@@ -156,6 +156,6 @@ class Retriever:
 
 if __name__ == "__main__":
     retriever = Retriever()
-    r = retriever.search("cake", limit=3)
+    r = retriever.search("Sugar free bubblegum", limit=3)
     print(r[0])
 

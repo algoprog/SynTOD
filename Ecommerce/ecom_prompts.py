@@ -1,7 +1,7 @@
 # System prompts
 
 START_PROMPT = {
-    "prompt": "Your name is MarunaSalesAssociate. You are a taskbot developed by CIIR at UMass Amherst, that helps with selling products present in an inventory. Write an intro prompt to the user, don't use emojis.",
+    "prompt": "Your name is MarunaSalesAssociate. You are a taskbot developed by CIIR at UMass Amherst, that helps with selling products present in a product catalog. Write an intro prompt to the user, don't use emojis.",
     "json_format": None
 }
 
@@ -45,7 +45,7 @@ OPTION_SELECTED_PROMPT = {
 title: {}
 description: {}
 
-Generate a captivating system response and provide options for the user, such as viewing the product's attributes, adding it to the cart, purchasing it, or adding it for comparison. Please provide only the text of the response.""",
+Generate a system response and provide options for the user, such as viewing the product's attributes, adding it to the cart, purchasing it, or adding it for comparison. Please provide only the text of the response.""",
     
     "json_format": None
 }
@@ -57,7 +57,7 @@ SHOW_PRODUCT_PROMPT = {
 
 {}
 
-Generate a compelling response that describes the product {}. Ask the user if they would like to buy it or add it to their cart. If the response is short, consider including a helpful tip or fun fact. Provide only the text of the response, keeping it clear and concise.""",
+Generate a compelling response that describes the product. You may highlight most relevant feature in the given product information. Ask the user if they would like to buy it or add it to their cart. If the response is short, consider including a helpful tip or fun fact. Provide only the text of the response, keeping it clear and concise.""",
 
     "json_format": None
 }
@@ -68,7 +68,7 @@ BOUGHT_CART_PROMPT = {
 }
 
 IN_CONVERSATION_SYSTEM_PROMPT = {
-    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory and the user is currently in conversation {}. Here is the product info:\n{}\nGive an engaging response to the user below, don't give any detailed instructions, give only the text in your response:\nuser: {}",
+    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory and the user is currently in conversation. Here is the product info:\n{}\nGive an engaging response to the user below, don't give any detailed instructions, give only the text in your response, do not ask user to click on anything but you can ask him to type the need:\nuser: {}",
     "json_format": None
 }
 
@@ -133,32 +133,36 @@ SEARCH_PRODUCT_PROMPT = {
     "prompt": """You are a human user talking to a taskbot that helps with selling products on an ecommerce platform. You want to find products for '{}', write ONE single or multi sentence short prompt to the taskbot. Use simple human-like language. Some examples (don't rely only on these):
 
 i want to buy x
-can you help me to get x
+can you help me to get x which is of brand d and size y
 x goods
 can you suggest me some xs 
 x
 help me buy a x
 x recommendations
 
+Give slots for query, product_name, and list of attributes
 Give query too in the response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language
-
+List of attributes should be derived from the text in response and should be like [(color:c),(brand: b)], keep at max 4 most relevant attributes, every text may not have these attributes mentioned, in that case use a blank list []
 Use this format in your response:
 
-{{\"text\": ..., \"product_name\": ...,  \"query\": ...}}""",
+{{\"text\": ..., \"product_name\": ...,  \"query\": ..., \"attributes_list\":...}}""",
 
-    "json_format": "{\"text\": ..., \"product_name\": ..., \"query\": ...}"
+    "json_format": "{\"text\": ..., \"product_name\": ..., \"query\": ..., \"attributes_list\":...}"
 }
 
 SUGGEST_PRODUCT_PROMPT = {
     "prompt": """You are a human user talking to a voice-based taskbot that helps with selling products on an ecommerce platform. Write ONE single or multi sentence short prompt to the taskbot asking for product suggestions/recommendations based on some preferences or choices. The query shouldn't mention some specific product name, but the following products should be relevant result:
 
 {}
+Give slots for query, and list of attributes (attributes_list)
 
 Use simple diverse human-like language and the following format in your response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language:
+List of attributes should be derived from the text in response and should be like [(color:c),(brand: b)], keep at max 4 most relevant attributes, every text may not have these attributes mentioned, in that case use a blank list []
+Use this format in your response:
 
-{{\"text\": ..., \"query\": ...}}""",
+{{\"text\": ..., \"query\": ..., \"attributes_list\":...}}""",
 
-    "json_format": "{\"text\": ..., \"query\": ...}"
+    "json_format": "{\"text\": ..., \"query\": ..., \"attributes_list\":...}"
 }
 
 # selling products on an ecommerce platform
@@ -185,7 +189,7 @@ give me the last option
 I'll go with the x product
 third one please
 
-Don't just copy the examples, be creative. You don't need to mention the number of the option. Try to avoid mentioning the exact product name. One in each line, only the text.""",
+Don't just copy the examples, be creative. You don't need to mention the number of the option always. Try to avoid mentioning the exact product name. One in each line, only the text.""",
     "json_format": None
 }
 
@@ -193,11 +197,18 @@ Don't just copy the examples, be creative. You don't need to mention the number 
 SHOW_ATTRIBUTES_BEGIN_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a 3 prompts to the bot confirming to start describing the product's attributes for product {}. One in each line, no enumeration, use simple diverse human-like language, no quotes. Examples:
 
+text : 
 show me the product's features
 what's the products USP
-okay, what are the specifications""",
+okay, what are the specifications
+could you highlight unique attributes of this product?
 
-    "json_format": None
+Use following format in the response: 
+{{\"text\":..., \"title\":..., \"product_id\" :... }}
+
+""",
+
+    "json_format": "{\"text\":..., \"title\":..., \"product_id\" :... }"
 }
 
 
@@ -213,8 +224,10 @@ ACKNOWLEDGE_PROMPT = {
 
 
 PRODUCT_QA_PROMPT = {
-    "prompt": "You are a human user already talking to a bot that helps with selling products on an ecommerce platform and you are currently in conversation. Write a prompt to the bot asking a question about the current product or the product in general. Don't just ask about some straight forward questions, ask things like specifications of the product, features, etc. Don't mention attribute numbers. Give only the question in your response.\Product info:\n{}",
-    "json_format": None
+    "prompt": """You are a human user already talking to a bot that helps with selling products on an ecommerce platform and you are currently in conversation. Write a prompt to the bot asking a question about the current product or the product in general. Don't just ask about some very straight forward question like whats the product name, ask things like specifications of the product, features, etc. Don't mention attribute numbers.\Product info:\n{},
+    Use following format in the response: 
+    {{\"question\": ..., \"title\": ..., \"product_id\": ...}}""",
+    "json_format" : "{\"question\": ..., \"title\": ..., \"product_id\": ...}"
 }
 
 OPEN_DOMAIN_QA_PROMPT_IN_CONVERSATION = {
@@ -223,8 +236,9 @@ OPEN_DOMAIN_QA_PROMPT_IN_CONVERSATION = {
 }
 
 OPEN_DOMAIN_QA_PROMPT = {
-    "prompt": "You are a human user already talking to a bot that helps with selling products on an ecommerce platform. Write a prompt to the bot asking an open domain question (not necessarily related to products). Give only the question in your response.",
-    "json_format": None
+    "prompt": """You are a human user already talking to a bot that helps with selling products on an ecommerce platform. Write a prompt to the bot asking an open domain question (not necessarily related to products). Give only question and general topic asked in the question. \n Use this format in your response: 
+    {{\"question\": ..., \"topic\": ...}}""",
+    "json_format": "{\"question\": ..., \"topic\": ...}"
 }
 
 CHITCHAT_PROMPT = {
@@ -280,13 +294,27 @@ BUY_CART_PROMPT = {
 }
 
 ADD_TO_CART_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to add this product to the shopping cart. Examples: Add x to the cart, Put it in the cart. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
-    "json_format": None
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to add this product to the shopping cart. Examples: Add x to the cart, Put it in the cart.\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
 }
 
 REMOVE_FROM_CART_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. Write a response to ask the bot to remove this product from the shopping cart. Examples: Take x out from the cart, remove x . Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
-    "json_format": None
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. Write a response to ask the bot to remove this product from the shopping cart. Examples: Take x out from the cart, remove x .\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
 }
 
 
@@ -295,11 +323,11 @@ USER_PREFERENCE_PROMPT = {
 
 {}
 
-Use simple diverse human-like language and the following format in your response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language:
+Use simple diverse human-like language and the following format in your response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language, also attributes_list should be a list of relevant key value pairs with key as name of attribute and value as it's specification:
 
-{{\"text\": ..., \"query\": ...}}""",
+{{\"text\": ..., \"query\": ..., \"attributes_list\":...}}""",
 
-    "json_format": "{\"text\": ..., \"query\": ...}"
+    "json_format": "{\"text\": ..., \"query\": ..., \"attributes_list\":...}"
 }
 
 
@@ -309,20 +337,33 @@ COMPARE_PRODUCTS_PROMPT = {
 {}
 
 Use simple diverse human-like language and the following format in your response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language:
+List of products is the list of title of products for comparison: 
+{{\"text\": ..., \"query\": ..., \"list_of_products\":...}}""",
 
-{{\"text\": ..., \"query\": ...}}""",
-
-    "json_format": "{\"text\": ..., \"query\": ...}"
+    "json_format": "{\"text\": ..., \"query\": ..., \"list_of_products\":...}"
 }
 
 ADD_FOR_COMPARE_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to add this product to the compare list. Examples: Add x to the compare list, Put x for comparison. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
-    "json_format": None
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to add this product to the compare list. Examples: Add x to the compare list, Put x for comparison. No quotes or enumeration.\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
 }
 
 REMOVE_FROM_COMPARE_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your compare list. Write a response to ask the bot to remove this product from the compare list. Examples: Do not use x for comparison, remove x . Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
-    "json_format": None
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your compare list. Write a response to ask the bot to remove this product from the compare list. Examples: Do not use x for comparison, remove x .\nBot: {},
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
 }
 
 
@@ -332,6 +373,11 @@ USER_GENERIC_PRODUCT_PROMPT = {
 }
 
 CHECK_DELIVERY_AVAILABILITY_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered in a location in United States. Examples: Is it available for delivery in pincode x, Could it be delivered to x. Give only the text in your response nothing else. No quotes or enumeration.\nBot: {}",
-    "json_format": None
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered to some country say USA, UK, Canada, India, Brazil, etc. Examples: Is it available for delivery in country x, Could it be delivered to x. \nBot: {}
+    
+    Use following format in the response just keep name of country in the address:
+    {{\"text\":..., \"address\":...}}
+    
+    """,
+    "json_format": "{\"text\":..., \"address\":...}"
 }

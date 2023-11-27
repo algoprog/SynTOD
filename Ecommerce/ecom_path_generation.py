@@ -59,16 +59,16 @@ class TaskPathGenerator:
                                     ]
 
         ecomm_in_conversation_intents = [
-                                        (intents.more_results, 0.25 * 0.7 * (1 - ci_weight)),
+                                        (intents.more_results, 0.30 * 0.7 * (1 - ci_weight)),
                                         
                                         
                                         (intents.acknowledge, 0.10 * 0.7 * (1 - ci_weight)),
                                         # (intents.add_to_cart, 0.30 * 0.7 * (1 - ci_weight)),   
-                                        (intents.refine_query, 0.15 * 0.7 * (1 - ci_weight)),  
+                                        (intents.refine_query, 0.25 * 0.7 * (1 - ci_weight)),  
                                         (intents.buy_cart, 0.15 * 0.7 * (1 - ci_weight)),   
                                         (intents.delivery_address, 0.05 * 0.7 * (1 - ci_weight)), 
                                         
-                                        (intents.product_qa, 0.7 * 0.15 * (1 - ci_weight)), 
+                                        # (intents.product_qa, 0.7 * 0.15 * (1 - ci_weight)), 
                                         (intents.show_attributes, 0.1 * 0.15 * (1 - ci_weight)),  
                                         (intents.repeat, 0.2 * 0.15 * (1 - ci_weight)), 
                                         
@@ -78,10 +78,11 @@ class TaskPathGenerator:
                                         ]
 
         ecom_intents_after_selection = [(intents.product_info, 0.2 * (1 - ci_weight)),
-                                        (intents.show_attributes, 0.25 * (1 - ci_weight)),
+                                        (intents.show_attributes, 0.22 * (1 - ci_weight)),
                                         (intents.add_to_cart, 0.3 * (1 - ci_weight)),
                                         (intents.add_for_compare, 0.20 * (1 - ci_weight)),		
-                                        (intents.delivery_address, 0.05 * (1 - ci_weight))
+                                        (intents.delivery_address, 0.03 * (1 - ci_weight)),
+                                        (intents.product_qa, 0.05 * (1 - ci_weight)), 
                                         ]
 
         self.graph = {
@@ -160,7 +161,7 @@ class TaskPathGenerator:
                     intents.delivery_address: ecomm_in_conversation_intents, 
                     
                     
-                    intents.product_qa: [(intents.select_i, 0.7)] + ecomm_in_conversation_intents, 
+                    intents.product_qa: [(intents.in_conversation_system_response, 1.0)], 
                     
                     intents.add_for_compare : [(intents.system_response_add_for_compare, 1.0)] ,  
                     
@@ -227,7 +228,6 @@ class TaskPathGenerator:
 
                         ]
         started_conversation = False
-        finished_product_recommendation = False
         
         selected_product = False
         issued_query = False
@@ -236,12 +236,26 @@ class TaskPathGenerator:
         walk = [current_node]
         
         clarifying_question_number = 0
+        products_in_compare_list = 0
+        products_in_cart = 0
+
         
         for _ in range(max_length - 1):
             if current_node == intents.stop:
                 break
             
             current_node_name = current_node
+
+            if current_node == intents.add_for_compare :
+                products_in_compare_list +=1
+            if current_node == intents.remove_from_compare :
+                products_in_compare_list -=1
+                if(products_in_compare_list < 0) :
+                    products_in_compare_list = 0
+            if current_node == intents.add_to_cart :
+                products_in_cart +=1
+            if current_node == intents.remove_from_cart :
+                products_in_cart -=1
 
 
             neighbors = self.graph[current_node_name]
@@ -261,6 +275,20 @@ class TaskPathGenerator:
                 i +=1
                 if(i ==10) :
                     print(f"stuck here!! - current_node_name : {current_node_name} , neighbours: {neighbors}")
+            
+            while chosen_node == intents.compare_products and products_in_compare_list < 2:
+                chosen_node, prob = random.choices(neighbors, weights=probabilities, k=1)[0]
+                i +=1
+                if(i ==10) :
+                    print(f"stuck here!! - current_node_name : {current_node_name} , neighbours: {neighbors}")
+            
+            while chosen_node == intents.buy_cart and products_in_cart < 1:
+                chosen_node, prob = random.choices(neighbors, weights=probabilities, k=1)[0]
+                i +=1
+                if(i ==10) :
+                    print(f"stuck here!! - current_node_name : {current_node_name} , neighbours: {neighbors}")
+            
+            
             current_node = chosen_node
 
             system_turn = current_node in system_intents
@@ -297,12 +325,12 @@ class TaskPathGenerator:
             elif current_node == intents.system_response and started_conversation:
                 current_node = intents.in_conversation_system_response
             
-            elif not system_turn and selected_product and not started_conversation and random.random() > 0.7:
-                '''
-                    Product is selected after the query results are shown
-                    Will make the user to jump on a different search or just continue 
-                '''
-                current_node = random.choice([intents.start, intents.acknowledge])
+            # elif not system_turn and selected_product and not started_conversation and random.random() > 0.7:
+            #     '''
+            #         Product is selected after the query results are shown
+            #         Will make the user to jump on a different search or just continue 
+            #     '''
+            #     current_node = random.choice([intents.start, intents.acknowledge])
             
             elif not system_turn and not selected_product and random.random() > 0.3 and \
                     current_node not in [intents.select_i, intents.more_results]:
@@ -317,6 +345,24 @@ class TaskPathGenerator:
             walk.append('stop')
 
         return walk
+    
+    def get_path_from_file(self, pos, filename) :
+        '''
+        pos is indexed from 0
+        '''
+        walks = []
+        walk = []
+        with open(filename, newline='') as csvfile:
+            # Create a CSV reader
+            csv_reader = csv.reader(csvfile)
+            
+            # Iterate through each row in the CSV file
+            for row in csv_reader:
+                # 'row' variable contains each row as a list
+                # print(row)  # Or perform any operations with the row list
+                walks.append(row)
+        walk = walks[pos]
+        return walk
 
 
 if __name__ == '__main__':
@@ -324,23 +370,28 @@ if __name__ == '__main__':
 
     num_paths = 100
 
-    path = cg.generate_path(max_length=30, num_clari=4)
+    # path = cg.generate_path(max_length=30, num_clari=4)
 
-    paths = [cg.generate_path(max_length=30, num_clari=4) for _ in
-             range(num_paths)]
+    # paths = [cg.generate_path(max_length=30, num_clari=4) for _ in
+    #          range(num_paths)]
 
     
     file_name = 'generated_paths.csv'
 
-    # Open the file in write mode and use 'csv.writer' to write the data
-    with open(file_name, 'w', newline='') as file:
-        csv_writer = csv.writer(file)
-        
-        # Write each row to the CSV file
-        for p in paths:
-            csv_writer.writerow(p)
+    paths = [ cg.get_path_from_file(pos, file_name) for pos in range(num_paths) ]
 
-    plot_states_frequency(paths)
+    # # Open the file in write mode and use 'csv.writer' to write the data
+    # with open(file_name, 'w', newline='') as file:
+    #     csv_writer = csv.writer(file)
+        
+    #     # Write each row to the CSV file
+    #     for p in paths:
+    #         csv_writer.writerow(p)
+
+    # plot_states_frequency(paths)
+    selected_paths = [0,2,3,5,6,8,10,18,21,39]
+    for pos in selected_paths :
+        print(paths[pos])
 
 
 

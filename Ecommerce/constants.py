@@ -44,7 +44,7 @@ class Intents:
         self.repeat = 'repeat'
         self.deny = 'deny'
         self.stop = 'stop'
-        self.dangerous_product = 'dangerous_product'
+        self.dangerous_product = 'dangerous_product' # not used
 
 
         # User and untracked 
@@ -165,17 +165,23 @@ intents = Intents()
 
 # }
 
+slots_map = {
+intents.delivery_address : {"text":"", "address": ""},
+intents.remove_from_compare : {"text": "", "title": "", "product_id":""},
+intents.add_for_compare :  {"text": "", "title": "", "product_id":""},
+intents.compare_products : {"text": "", "query": "", "list_of_products":""},
+intents.refine_query : {"text": "", "query": "", "attributes_list":"" },
+intents.remove_from_cart : {"text": "", "title": "", "product_id":""} , 
+intents.add_to_cart : {"text": "", "title": "", "product_id":""} ,
+intents.open_domain_qa : {"question": "", "topic": ""},
+intents.product_qa : {"question": "", "title": "", "product_id":""},
+intents.show_attributes : {"text": "", "title" : "", "product_id" : "" },
+intents.search_product: {"text": "", "product_name": "", "query": "", "attributes_list":""}, 
+intents.suggest_product : {"text": "", "query": "", "attributes_list":""},
 
-'''
-Remaining prompts:
+intents.show_results : {"text": "", "product_ids": ["", ""]},
+intents.more_results :  {"text": "", "product_ids": ["", ""]},
 
 
-Not necessary:
-FINISH_PRODUCT_RECOMMENDATION_PROMPT
-PERSONAL_INFORMATION_PROMPT
-DANGEROUS_PRODUCT_PROMPT
-OPEN_DOMAIN_QA_PROMPT_IN_CONVERSATION
+}
 
-
-
-'''
