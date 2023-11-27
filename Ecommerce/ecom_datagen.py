@@ -46,43 +46,43 @@ def md5_hash(string):
     return md5.hexdigest()
 
 
-# def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
-#     for i in range(max_retries):
-#         try:
-#             response = openai.ChatCompletion.create(
-#                 model=model,
-#                 max_tokens=2000,
-#                 temperature=temperature,
-#                 request_timeout=40,
-#                 messages=[{'role': 'user', 'content': prompt}]
-#             )
-#             write_gpt_resp(prompt,response)
-#             used_tokens = response["usage"]["total_tokens"]
-#             return response["choices"][0]["message"]["content"].strip(), used_tokens
-#         except Exception as e:
-#             print(f"Error occurred: {e}. Retrying in {2} seconds...")
-#             time.sleep(2)
-#     return None, 0
-
 def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
     for i in range(max_retries):
         try:
-            response = gpt4.get_gpt_response(prompt, model)
-            
-            # openai.ChatCompletion.create(
-            #     model=model,
-            #     max_tokens=2000,
-            #     temperature=temperature,
-            #     request_timeout=40,
-            #     messages=[{'role': 'user', 'content': prompt}]
-            # )
-            # used_tokens = response["usage"]["total_tokens"]
-            # return response["choices"][0]["message"]["content"].strip(), used_tokens
-            return response, 0
+            response = openai.ChatCompletion.create(
+                model=model,
+                max_tokens=2000,
+                temperature=temperature,
+                request_timeout=40,
+                messages=[{'role': 'user', 'content': prompt}]
+            )
+            write_gpt_resp(prompt,response)
+            used_tokens = response["usage"]["total_tokens"]
+            return response["choices"][0]["message"]["content"].strip(), used_tokens
         except Exception as e:
             print(f"Error occurred: {e}. Retrying in {2} seconds...")
             time.sleep(2)
     return None, 0
+
+# def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
+#     for i in range(max_retries):
+#         try:
+#             response = gpt4.get_gpt_response(prompt, model)
+            
+#             # openai.ChatCompletion.create(
+#             #     model=model,
+#             #     max_tokens=2000,
+#             #     temperature=temperature,
+#             #     request_timeout=40,
+#             #     messages=[{'role': 'user', 'content': prompt}]
+#             # )
+#             # used_tokens = response["usage"]["total_tokens"]
+#             # return response["choices"][0]["message"]["content"].strip(), used_tokens
+#             return response, 0
+#         except Exception as e:
+#             print(f"Error occurred: {e}. Retrying in {2} seconds...")
+#             time.sleep(2)
+#     return None, 0
 
 def generate_conversation(task_name): 
     prompt = f"""Simulate a conversation between a taskbot system and a user about {task_name}. 
@@ -709,7 +709,7 @@ class DataGenerator:
             
             if isinstance(response, str):
                 if "\"question\":" in response or "\"text\":" in response :
-                    response = json.load(response)
+                    response = json.loads(response)
                 else:
                     response = {'text': response}
             
