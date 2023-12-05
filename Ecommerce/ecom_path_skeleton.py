@@ -8,24 +8,25 @@ class AltTaskPathGenerator(UniversalPaths) :
         
         # user intents 
         ecomm_start_intents = [
-            (intents.search_product, 0.3),  
-            (intents.suggest_product, 0.3), 
-            (intents.open_domain_qa, 0.30),
-            (intents.chitchat, 0.10)  
+            (intents.search_product, 0.23),  
+            (intents.suggest_product, 0.22), 
+            (intents.open_domain_qa, 0.20),
+            (intents.chitchat, 0.20) ,
+            (intents.generic_product_query, 0.15)
             ]
 
         ecomm_in_conversation_intents = [
-                                        (intents.more_results, 0.30),
+                                        (intents.more_results, 0.20),
                                         # (intents.acknowledge, 0.10),
-                                        (intents.refine_query, 0.35 ),  
+                                        (intents.open_domain_qa, 0.15),  
                                         (intents.buy_cart, 0.15 ),   
                                         (intents.delivery_address, 0.05 ), 
                                         (intents.show_attributes, 0.1 ),  
-                                        (intents.repeat, 0.05), 
+                                        (intents.repeat, 0.10), 
                                         ]
         ecomm_in_conversation_intents_after_compare_selection = [
                                         (intents.acknowledge, 0.05  ),
-                                        (intents.refine_query, 0.25  ),  
+                                        (intents. suggest_product, 0.25  ),  
                                         (intents.buy_cart, 0.15  ),   
                                         (intents.product_qa, 0.35  ), 
                                         (intents.add_to_cart, 0.20),
@@ -35,15 +36,17 @@ class AltTaskPathGenerator(UniversalPaths) :
                                         (intents.more_results, 0.15 ),
                                         (intents.acknowledge, 0.10 ),
                                         (intents.add_to_cart, 0.15),   
-                                        (intents.refine_query, 0.15 ),  
+                                        # (intents.refine_query, 0.15 ),  
+                                        (intents.suggest_product, 0.05 ),  
+                                        (intents.search_product, 0.05 ),  
                                         (intents.buy_cart, 0.15 ),   
-                                        (intents.delivery_address, 0.10 ), 
+                                        (intents.delivery_address, 0.15 ), 
                                         (intents.repeat, 0.2 ), 
                                         ]
         ecomm_in_conversation_intents_after_compare = [
                                         (intents.suggest_product, 0.40),
-                                        (intents.search_product, 0.30),
-                                        (intents.refine_query, 0.30),  
+                                        (intents.search_product, 0.50),
+                                        (intents.generic_product_query, 0.10),  
                                         ]
 
         ecom_intents_after_selection = [
@@ -61,14 +64,18 @@ class AltTaskPathGenerator(UniversalPaths) :
 
                     intents.show_results: [(intents.select_i,  0.8 ),
                                     (intents.more_results,  0.15),
-                                    (intents.refine_query, 0.05)
+                                    (intents.suggest_product, 0.05)
                                     ],
 
-                    intents.shown_cart : [(intents.select_i_remove_from_cart, 0.30),(intents.acknowledge, 0.1), (intents.buy_cart, 0.4), (intents.refine_query, 0.25  )] ,
+                    intents.shown_cart : [(intents.select_i_remove_from_cart, 0.30),(intents.acknowledge, 0.1), (intents.buy_cart, 0.4), (intents.suggest_product, 0.25  )] ,
                     
                     intents.shown_attributes: ecomm_in_conversation_intents_after_attributes,
 
                     intents.show_comparison : [ (intents.select_i_remove_from_compare, 0.65) ] + self.adjust_by_weight(ecomm_in_conversation_intents_after_compare_selection, 0.35),
+
+                    intents.clarifying_questions : [(intents.user_clarifies, 1.0)],
+
+                    intents.user_clarifies : [(intents.show_results, 0.3), (intents.clarifying_questions, 0.7) ],
 
 
                     intents.option_selected: ecom_intents_after_selection,
@@ -104,6 +111,9 @@ class AltTaskPathGenerator(UniversalPaths) :
                     intents.compare_products: [(intents.show_comparison, 1.0)],  
 
                     intents.delivery_check : ecomm_in_conversation_intents, 
+
+                    intents.generic_product_query:[(intents.clarifying_questions, 1.0 )],  
+                    
 
                     
         #############################################################################################################

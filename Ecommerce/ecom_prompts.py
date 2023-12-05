@@ -186,6 +186,8 @@ Use this format in your response:
     "json_format": "{\"text\": ..., \"query\": ..., \"attributes_list\":...}"
 }
 
+
+
 # selling products on an ecommerce platform
 MORE_OPTIONS_PROMPT = {
     "prompt": """You are a human user already talking to a taskbot that helps with selling products on an ecommerce platform. You got some results but want to find more products/results, write ONE single or multi sentence short prompt to the taskbot. Use simple diverse human-like language, no quotes. Write a statement or question. Examples:
@@ -319,10 +321,9 @@ BUY_CART_PROMPT = {
 ADD_TO_CART_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
     Write a response to ask the bot to add this product to the shopping cart. 
-    Sometimes do not directly state the name of this product while asking to add to cart, in such a case, you can use contextual cues or references like Add second one in cart
     Response should not be very short like: add to cart. 
-    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
-    
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
     
     Examples: Add x to the cart, Put it in the cart.\nBot: {}
     
@@ -338,11 +339,49 @@ ADD_TO_CART_PROMPT = {
 REMOVE_FROM_CART_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. 
     Write a response to ask the bot to remove this product from the shopping cart. 
-    Sometimes do not directly state the name of this product while asking to remove from cart, in such a case, you can use contextual cues or references like remove second one from cart
     Response should not be very short like: remove. 
-    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
-    
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
     Examples: Take x out from the cart, remove x .\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
+}
+
+ADD_TO_CART_REFERENTIAL_PROMPT = {
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
+    Write a response to ask the bot to add this product to the shopping cart. 
+    Do not directly state the name of this product while asking to add to cart, 
+    you can use contextual cues or references like : add second one to the cart
+    Response should not be very short like: add to cart. 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
+    
+    Examples: Add x to the cart, Add last one to the cart.\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
+}
+
+REMOVE_FROM_CART_REFERENTIAL_PROMPT = {
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. 
+    Write a response to ask the bot to remove this product from the shopping cart. 
+    Do not directly state the name of this product while asking to remove from the cart, 
+    you can use contextual cues or references like : remove second one from the cart
+    Response should not be very short like: remove 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
+    Examples: Take last one from the cart, remove x .\nBot: {}
     
     
     Use following format in the response:
@@ -381,11 +420,11 @@ List of products is the list of title of products for comparison:
 
 ADD_FOR_COMPARE_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
-    Craft a response requesting the bot to include this item in the comparison list.
-    Sometimes do not directly state the name of this product while asking to add to compare, in such a case, you can use contextual cues or references like Add second one for comparision
+    Craft a response requesting the bot to include this product in the comparison list.
     Response should not be very short like compare or add compare. 
-    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
-    Some Examples: Add x to the compare list, Put x for comparison. Select the last option for comparison.
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
+    Some Examples: Add x to the compare list, Put x for comparison.
     No quotes or enumeration.\nBot: {}
     
     
@@ -399,10 +438,12 @@ ADD_FOR_COMPARE_PROMPT = {
 
 REMOVE_FROM_COMPARE_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your compare list. Write a response to ask the bot to remove this product from the compare list, response should not be very short. 
-    Sometimes do not directly state the name of this product while asking to remove, in such a case, you can use contextual cues or references like remove second one from comparision
-    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
     
-    Expected Examples: Do not use x for comparison, remove x , remove the last option.\nBot: {},
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
+    Expected Examples: Do not use x for comparison, remove x\n
+    
+    Bot: {},
     
     Use following format in the response:
 
@@ -412,12 +453,66 @@ REMOVE_FROM_COMPARE_PROMPT = {
     "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
 }
 
+ADD_FOR_COMPARE_REFERENTIAL_PROMPT = {
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
+    Craft a response requesting the bot to include this product in the comparison list.
+    Do not directly state the name of this product while asking to compare, 
+    you can use contextual cues or references like : add second one for compare.
+    Response should not be very short like: add for compare. 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
 
-USER_GENERIC_PRODUCT_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a generic product prompt to the bot. Prompt should not be specific as bot should ask you a clarifying question in return. Product : {}. Examples I need a laptop, show me a shirt, I am shopping for xmas gift.  Give only the text in your response nothing else. No quotes or enumeration. \nBot: {}", 
-    "json_format": None
+    
+    Examples: Add x to compare, Add last one for comparing.\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
 }
 
+REMOVE_FROM_COMPARE_REFERENTIAL_PROMPT = {
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. 
+    Write a response to ask the bot to remove this product from the compare list.
+    Do not directly state the name of this product while asking to remove from the cart, 
+    you can use contextual cues or references like : remove second one from the cart
+    Response should not be very short like: remove 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
+
+    Examples: Take last one from the cart, remove x .\nBot: {}
+    
+    
+    Use following format in the response:
+
+    {{\"text\": ..., \"title\": ..., \"product_id\":...}}
+    
+    """,
+    "json_format": "{\"text\": ..., \"title\": ..., \"product_id\":...}"
+}
+
+USER_GENERIC_PRODUCT_PROMPT = {
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a generic product prompt to the bot. Prompt should not be specific as bot should ask you few clarifying questions in return which will lead to Product : {}. Examples I need a laptop, show me a shirt, I am shopping for xmas gift.  Give only the text in your response nothing else. No quotes or enumeration.""", 
+    "json_format": None
+}
+USER_CLARIFIES_AFTER_CLARIFICATION_PROMPT = {
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. 
+    Write a generic product prompt to the bot refering to the clarification bot has asked. 
+    Prompt should not be very specific as bot should ask you a clarifying question back in return which will lead to Product : {}. 
+    Current conversation : \n{}
+    Examples I need a laptop with 16gb RAM, show me a yellow shirt, I am shopping for xmas clothing.
+    
+    Give slots for query, and list of attributes (attributes_list)
+
+    Use simple diverse human-like language and the following format in your response, the query should be derived from the text response and should be keyword-style (suitable for a search engine) not natural language:
+    List of attributes should be derived from the text in response and should be like [(color:c),(brand: b)], keep at max 4 most relevant attributes, every text may not have these attributes mentioned, in that case use a blank list []
+    Use this format in your response:
+
+    {{\"text\": ..., \"query\": ..., \"attributes_list\":...}}""",
+
+    "json_format": "{\"text\": ..., \"query\": ..., \"attributes_list\":...}"
+}
 CHECK_DELIVERY_AVAILABILITY_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered in {}. Examples: Is it available for delivery in country x, Could it be delivered to x. \nBot: {}
     You must mention the name of country in text 

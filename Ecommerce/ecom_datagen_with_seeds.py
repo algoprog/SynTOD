@@ -330,6 +330,7 @@ class DataGenerator:
         aux_compare = args["aux_compare"]
         path_i = path_pos + 1
         prdt = args['product']
+        clarification_conversation = args['clarification_conversation']
 
         if args['product'] != None :
             product_info = self.product_to_string(args['product'])
@@ -356,8 +357,9 @@ class DataGenerator:
         
         elif intent == intents.show_results :
             model = gpt_4
-            temperature = 0.2
+            temperature = 0.5
             prdt = other_product
+            clarification_conversation = None
             if prdt == None :
                 prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
             
@@ -411,16 +413,22 @@ class DataGenerator:
             
             prdt = other_product
             product_info = self.product_to_string(prdt)
-            prompt = REMOVE_FROM_COMPARE_PROMPT['prompt'].format(product_info, args['bot'])
-            json_format = REMOVE_FROM_COMPARE_PROMPT['json_format']
+            prompt_list = [REMOVE_FROM_COMPARE_PROMPT, REMOVE_FROM_COMPARE_REFERENTIAL_PROMPT]
+            z = random.randint(0, len(prompt_list)-1)
+            temperature = 0.8
+            prompt = prompt_list[z]['prompt'].format(product_info, args['bot'])
+            json_format = prompt_list[z]['json_format']
             
         
         elif intent == intents.select_i_remove_from_cart:
             # model = gpt_4
             prdt = other_product
             product_info = self.product_to_string(prdt)
-            prompt = REMOVE_FROM_CART_PROMPT['prompt'].format(product_info, args['bot'])
-            json_format = REMOVE_FROM_CART_PROMPT['json_format']
+            prompt_list = [REMOVE_FROM_CART_PROMPT, REMOVE_FROM_CART_REFERENTIAL_PROMPT]
+            z = random.randint(0, len(prompt_list)-1)
+            temperature = 0.8
+            prompt = prompt_list[z]['prompt'].format(product_info, args['bot'])
+            json_format = prompt_list[z]['json_format']
             
         
         elif intent == intents.option_selected:
@@ -628,14 +636,20 @@ class DataGenerator:
             last_shown_options_string = args['last_shown_options_string']
             if last_shown_options_string == None :
                 last_shown_options_string = args['bot']
-            prompt = ADD_TO_CART_PROMPT['prompt'].format(product_info_oth,last_shown_options_string)
+
             
             if 'cart' in args.keys() :
                 cart = args['cart']
 
             cart.append(prdt)
-            temperature = 0.5
+            
+            prompt_list = [ADD_TO_CART_PROMPT, ADD_TO_CART_REFERENTIAL_PROMPT]
+            z = random.randint(0, len(prompt_list)-1)
+            temperature = 0.8
+            prompt = prompt_list[z]['prompt'].format(product_info_oth,last_shown_options_string)
+            json_format  = prompt_list[z]['json_format']
             # model = gpt_4
+            
         # need to handle aux compare 
         elif intent == intents.add_for_compare:
             #### some major issue here
@@ -657,9 +671,12 @@ class DataGenerator:
                 compare_list = args['compare_list']
             compare_list.append(prdt)
             
-
-            prompt = ADD_FOR_COMPARE_PROMPT['prompt'].format(product_info_oth,last_shown_options_string)
-            temperature = 0.5
+            prompt_list = [ADD_FOR_COMPARE_PROMPT, ADD_FOR_COMPARE_REFERENTIAL_PROMPT]
+            z = random.randint(0, len(prompt_list)-1)
+            temperature = 0.8
+            
+            prompt = prompt_list[z]['prompt'].format(product_info_oth,last_shown_options_string)
+            json_format  = prompt_list[z]['json_format']
             # model = gpt_4
         
         elif intent == intents.generic_product_query:
@@ -727,10 +744,27 @@ class DataGenerator:
             prompt = BOUGHT_CART_PROMPT['prompt']
         
         elif intent == intents.clarifying_questions :
-            prompt = ASK_CLARIFICATION_PROMPT['prompt'].format(args['user'])
+            clarification_conversation = args['clarification_conversation']
+            if clarification_conversation == None :
+                clarification_conversation = f"User : {args['user']} "
+            else :
+                clarification_conversation = f"{clarification_conversation} \n User: {args['user']}"
+            
+            prompt = ASK_CLARIFICATION_PROMPT['prompt'].format(clarification_conversation)
         
-        elif intent == intents.no_more_clarifying_questions :
-            prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format( product_info, args['user'])
+        elif intent == intents.user_clarifies :
+            # similar to suggest product prompt
+            prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
+            clarification_conversation = args['clarification_conversation']
+            if clarification_conversation == None :
+                clarification_conversation = f"Bot : {args['bot']} "
+            else :
+                clarification_conversation = f"{clarification_conversation} \n Bot : {args['bot']}"
+            prompt =  USER_CLARIFIES_AFTER_CLARIFICATION_PROMPT['prompt'].format(product_info, clarification_conversation, )
+            json_format = USER_CLARIFIES_AFTER_CLARIFICATION_PROMPT['json_format']
+            other_product = prdt
+            
 
         
         model = gpt_4_turbo
@@ -795,7 +829,8 @@ class DataGenerator:
                  'compare_i' : compare_i,
                  'aux_compare' : aux_compare,
                  'aux_cart' : aux_cart,
-                 'last_shown_options_string' : last_shown_options_string
+                 'last_shown_options_string' : last_shown_options_string,
+                 'clarification_conversation' : clarification_conversation
                  }
         
         return response, total_used_tokens, state, prompt
@@ -863,6 +898,7 @@ class DataGenerator:
     
         path_generator = TaskPathGenerator(graph = skeleton.graph)
         path = path_generator.generate_path(max_length=max_length)
+
         # path = ['start', 'search_product', 'show_results', 'more_results', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'suggest_product', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'compare_products', 'show_comparison', 'select_i_remove_from_compare', 'system_response_remove_from_compare', 'search_product', 'show_results', 'select_i', 'option_selected', 'add_to_cart', 'system_response_added_to_cart', 'stop']
         # print(f"path: {path}")
         # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
@@ -887,18 +923,18 @@ class DataGenerator:
         #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
         #           "stop"]
 
-        path = ["start", "suggest_product", "show_results", "select_i", "option_selected", intents.add_to_cart, 
-                intents.system_response_added_to_cart, intents.search_product, "show_results", "select_i", "option_selected", 
-                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-                intents.shown_cart,
-                 intents.select_i_remove_from_cart,intents.system_response_cart_removal, intents.search_product, "show_results", "select_i", "option_selected", 
-                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-                intents.shown_cart,
-                intents.select_i, intents.option_selected, intents.add_for_compare, intents.system_response_add_for_compare, 
-                intents.search_product, "show_results", "select_i", "option_selected", 
-                "add_for_compare", "system_response_add_for_compare",
-                intents.compare_products, intents.show_comparison, intents.acknowledge, intents.system_response , intents.buy_cart, intents.bought_cart,
-                  "stop"]
+        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", intents.add_to_cart, 
+        #         intents.system_response_added_to_cart, intents.search_product, "show_results", "select_i", "option_selected", 
+        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
+        #         intents.shown_cart,
+        #          intents.select_i_remove_from_cart,intents.system_response_cart_removal, intents.search_product, "show_results", "select_i", "option_selected", 
+        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
+        #         intents.shown_cart,
+        #         intents.select_i, intents.option_selected, intents.add_for_compare, intents.system_response_add_for_compare, 
+        #         intents.search_product, "show_results", "select_i", "option_selected", 
+        #         "add_for_compare", "system_response_add_for_compare",
+        #         intents.compare_products, intents.show_comparison, intents.acknowledge, intents.system_response , intents.buy_cart, intents.bought_cart,
+        #           "stop"]
         
         
         # path = path_generator.get_path_from_file(pos, 'generated_paths.csv') 
@@ -936,6 +972,7 @@ class DataGenerator:
         delivery_address = None
         other_product = None
         last_shown_options_string = None
+        clarification_conversation = None
 
         for i, intent in enumerate(path):
             if intent == intents.stop:
@@ -977,6 +1014,7 @@ class DataGenerator:
                                                                  "compare_i" : compare_i,
                                                                  "aux_compare" : aux_compare,
                                                                  'last_shown_options_string' :last_shown_options_string,
+                                                                 'clarification_conversation' : clarification_conversation,
                                                                  })
             if response is None:
                 print("Got response None")
@@ -1008,6 +1046,7 @@ class DataGenerator:
             other_product = state['other_product']
             aux_cart = state['aux_cart']
             aux_compare = state['aux_compare']
+            clarification_conversation = state['clarification_conversation']
             
             if state['suggestions'] != None:
                 response['suggestions'] = state['suggestions']
@@ -1167,4 +1206,4 @@ class DataGenerator:
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=1)
+    generator.generate_conversations(limit=3)

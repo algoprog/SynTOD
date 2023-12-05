@@ -63,6 +63,7 @@ class Intents:
         self.product_qa = 'product_qa'
         self.delivery_address = 'delivery_address'
         # self.desc_product = 'describe_product'
+        self.user_clarifies = 'user_clarifies'
 
 
         # system
@@ -86,6 +87,7 @@ class Intents:
         self.clarifying_questions = 'clarifying_questions'
         self.no_more_clarifying_questions = 'no_more_clarifying_questions' # no need of prompt
         self.system_response = 'system_response'
+
 
         self.started_conversation = 'started_conversation' # remove ? 
         self.no_results = 'no_results'

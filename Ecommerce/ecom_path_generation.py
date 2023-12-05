@@ -66,7 +66,6 @@ class TaskPathGenerator:
                         intents.start,
                         intents.show_results,
                         intents.clarifying_questions,
-                        intents.no_more_clarifying_questions,
                         intents.shown_cart,
                         intents.select_i_remove_from_cart,
                         intents.shown_attributes,
@@ -164,7 +163,7 @@ class TaskPathGenerator:
                     Limit the number of consecutive clarifying questions
                 '''
                 if clarifying_question_number >= num_clari:
-                    current_node = intents.no_more_clarifying_questions
+                    current_node = intents.show_results
                     clarifying_question_number = 0
                 else:
                     clarifying_question_number += 1
