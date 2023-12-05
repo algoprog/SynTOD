@@ -10,6 +10,8 @@ import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from tqdm.auto import tqdm
 from ecom_path_generation import TaskPathGenerator
+from ecom_path_skeleton import UniversalPaths, AltTaskPathGenerator
+
 
 from ecom_prompts import *
 from ecom_retriever import Retriever
@@ -23,6 +25,9 @@ inventory_file = "data/product_catalog.jsonl"
 pos_lock = threading.Lock()
 
 gpt4 = GPT4_Free_API()
+
+gpt_4_turbo = 'gpt-4-1106-preview'#'gpt-4-turbo'
+gpt_4 = 'gpt-4'
 
 def write_error(error):
     with lock:
@@ -46,7 +51,7 @@ def md5_hash(string):
     return md5.hexdigest()
 
 
-def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
+def chatgpt_api(prompt, model=gpt_4_turbo, temperature=0.2, max_retries=64):
     for i in range(max_retries):
         try:
             response = openai.ChatCompletion.create(
@@ -64,7 +69,7 @@ def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
             time.sleep(2)
     return None, 0
 
-# def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
+# def chatgpt_api(prompt, model=gpt_4_turbo, temperature=0.0, max_retries=64):
 #     for i in range(max_retries):
 #         try:
 #             response = gpt4.get_gpt_response(prompt, model)
@@ -206,6 +211,8 @@ class DataGenerator:
             final_Str = final_Str[:-2]
         
         final_Str += ']'
+        if '[(key , )]' in final_Str :
+            final_Str = ''
         return final_Str
     
     def features_to_string(self, features) :
@@ -243,7 +250,9 @@ class DataGenerator:
             if 'description' in product.keys() :
                 f_S += f", description: {product['description'][0]}"
             if 'attributes' in product.keys() :
-                f_S += f", attributes: {self.attri_to_string(product['attributes'])}\n"
+                attr = self.attri_to_string(product['attributes'])
+                if attr!= '' :
+                    f_S += f", attributes: {attr}\n"
             
         if shortest :
             f_S += f"product_title: {product['title']}"
@@ -261,20 +270,49 @@ class DataGenerator:
                 des = f", description:  {product['description'][0]}"
         f_S = f"title: {product['title']}{des}, user rating: {product['overall']}, reviewCount: ({product['reviewCount']}), attributes: {self.attri_to_string(product['attributes'])}"
 
-        # if 'feature' in product.keys() :
-        #     f_S += f", features : {self.features_to_string(product['feature'])}"
-        # if 'details' in product.keys() :
-        #     if(len(product['details']) <= 200) :
-        #         f_S += f", details: {self.details_to_string(product['details'])}"
-
         return f_S
+    
+    def get_correct_product(self, path, path_pos, aux_compare,compare_i, aux_cart, cart_i ) :
+        path_i = path_pos
+        while path_i < len(path) and path[path_i] not in [intents.add_for_compare, intents.add_to_cart] :
+            path_i +=1
+        prdt = aux_cart[cart_i]
+        if path_i < len(path) and path[path_i] == intents.add_for_compare :
+            prdt = aux_compare[compare_i]
+        return prdt
+    
+    def recognize_transition(self, path, path_pos, current_intent ) :
+        transition = False
+        lookout_intents = [intents.show_results, intents.show_comparison, intents.shown_cart]
+        if path_pos -1 >=0 :
+            # current_intent = path[path_pos -1]
+            i = path_pos -2
+            while( i >=0 and path[i] not in lookout_intents) :
+                i -=1
+        
+        if i > 0 and path[i] != intents.show_results:
+            if path[i] == intents.show_comparison and current_intent == intents.add_to_cart :
+                transition = True
+            elif path[i] == intents.shown_cart and current_intent == intents.add_for_compare :
+                transition = True
+
+        return transition
+    
+    def exchange_elements(self, arr, idx1, idx2):
+        cart2= arr
+        if 0 <= idx1 < len(cart2) and 0 <= idx2 < len(cart2):
+            cart2[idx1], cart2[idx2] = cart2[idx2], cart2[idx1]
+        else:
+            print("Indices out of range. Please provide valid indices.")
+        return cart2
+
 
     def generate_response(self, intent, next_intent=None, prev_intent=None, args=None):
         
-        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
+        total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         temperature = 1.0
         json_format = None
-        model = 'gpt-3.5-turbo'
+        model = gpt_4_turbo
         multi_output = False
         golden_result_position = args['golden_result_position']
         search_results = None
@@ -284,28 +322,46 @@ class DataGenerator:
         compare_list = args['compare_list']
         cart = args['cart']
         other_product = args['other_product']
+        path = args['path']
+        path_pos = args["path_pos"]
+        cart_i = args["cart_i"] 
+        aux_cart = args["aux_cart"]
+        compare_i = args["compare_i"]
+        aux_compare = args["aux_compare"]
+        path_i = path_pos + 1
+        prdt = args['product']
 
         if args['product'] != None :
             product_info = self.product_to_string(args['product'])
+
+
         
 
         if intent == intents.start:  
             prompt = START_PROMPT['prompt']
-            #model = 'gpt-4'
+            #model = gpt_4
         elif intent == intents.search_product:
-            prompt = SEARCH_PRODUCT_PROMPT['prompt'].format(args['product'])
+            prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            prompt = SEARCH_PRODUCT_PROMPT['prompt'].format(self.product_to_string(prdt))
             json_format = SEARCH_PRODUCT_PROMPT['json_format']
-            # model = 'gpt-4'
+            other_product = prdt
+            # model = gpt_4
         elif intent == intents.suggest_product:
-            product_info = self.product_to_string(args['product'])
-            # product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
             prompt = SUGGEST_PRODUCT_PROMPT['prompt'].format(product_info)
             json_format = SUGGEST_PRODUCT_PROMPT['json_format']
-            # model = 'gpt-4'
+            other_product = prdt
+            # model = gpt_4
+        
         elif intent == intents.show_results :
-            model = 'gpt-4'
-            temperature = 0.0
-            product_id = args['product']['id']
+            model = gpt_4
+            temperature = 0.2
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            
+            product_id = prdt['id']
             # retrieve 20 results, remove the current product id doc, and get the next 2-3 results
             results = self.retriever.search(args['query'], limit=20)
 
@@ -315,7 +371,7 @@ class DataGenerator:
                 results = [r[0] for r in results if r[0]['id'] != product_id][(args['page']-1)*2 : args['page']*2]
                 # add the current recipe id doc to the results in random position k
                 golden_result_position = random.randint(0, len(results))
-                results.insert(golden_result_position, args['product'])
+                results.insert(golden_result_position, prdt)
                 #print('results offsets:', (args['page']-1)*2, args['page']*2)
             else:
                 results = [r[0] for r in results if r[0]['id'] != product_id][(args['page']-1)*3 : args['page']*3]
@@ -341,114 +397,113 @@ class DataGenerator:
             json_format = MORE_OPTIONS_PROMPT['json_format']
             temperature = 1.2
         elif intent == intents.select_i:
-            # model = 'gpt-4'
+            # model = gpt_4
+            search_results = args['results']
             results = [f"id: {i+1}, {self.product_to_string(d, shortest=True, append =['rating'])}" for i, d in enumerate(args['results'])]
             results = '\n'.join(results)
             prompt = SELECT_I_PROMPT['prompt'].format(args['golden_result_position']+1, results)
             json_format = SELECT_I_PROMPT['json_format']
             multi_output = True
+
+        
+        elif intent == intents.select_i_remove_from_compare:
+            # model = gpt_4
+            
+            prdt = other_product
+            product_info = self.product_to_string(prdt)
+            prompt = REMOVE_FROM_COMPARE_PROMPT['prompt'].format(product_info, args['bot'])
+            json_format = REMOVE_FROM_COMPARE_PROMPT['json_format']
+            
+        
+        elif intent == intents.select_i_remove_from_cart:
+            # model = gpt_4
+            prdt = other_product
+            product_info = self.product_to_string(prdt)
+            prompt = REMOVE_FROM_CART_PROMPT['prompt'].format(product_info, args['bot'])
+            json_format = REMOVE_FROM_CART_PROMPT['json_format']
+            
+        
         elif intent == intents.option_selected:
+            search_results = args['results']
+            # results = [f"id: {i+1}, {self.product_to_string(d, shortest=True, append =['rating'])}" for i, d in enumerate(args['results'])]
+            # results = '\n'.join(results)
+            
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            
             desc = ''
-            if 'description' in args['product'] :
-                desc = args['product']['description']
-            elif 'feature' in args['product'] :
-                desc = args['product']['feature']
-            prompt = OPTION_SELECTED_PROMPT['prompt'].format(args['product']['title'], desc)
+            if 'description' in prdt :
+                desc = prdt['description']
+            elif 'feature' in prdt :
+                desc = prdt['feature']
+            prompt = OPTION_SELECTED_PROMPT['prompt'].format(prdt['title'], desc)
             json_format = OPTION_SELECTED_PROMPT['json_format']
         
         elif intent == intents.shown_attributes :
-            model = 'gpt-4'
-            # product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]]"
-            product_info = self.product_to_string(args['product'])
+            model = gpt_4
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            
+            product_info = self.product_to_string(prdt)
             prompt = SHOWN_ATTRIBUTES_PROMPT['prompt'].format(product_info)
             json_format = SHOWN_ATTRIBUTES_PROMPT['json_format']
         elif intent == intents.show_attributes :
-            model = 'gpt-4'
-            product_info = self.product_to_string(args['product'])
+            model = gpt_4
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
             prompt = SHOW_ATTRIBUTES_BEGIN_PROMPT['prompt'].format(product_info)
             json_format = SHOW_ATTRIBUTES_BEGIN_PROMPT['json_format']
             multi_output = True
         
         elif intent == intents.acknowledge:
-            # model = 'gpt-4'
+            # model = gpt_4
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            
             prompt = ACKNOWLEDGE_PROMPT['prompt']
             json_format = ACKNOWLEDGE_PROMPT['json_format']
             multi_output = True
         
-        elif intent in [intents.show_suggestions, intents.shown_cart, intents.show_comparison] :
-            model = 'gpt-4'
-            topk = 10
-            prompt = FIND_SUGGESTIONS_PROMPT['prompt'].format(topk, args['query'])
-            response, used_tokens = chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=7)
-            if response is None:
-                write_error(f'ERROR: {prompt}')
-                return None, total_used_tokens, None, prompt
-            total_used_tokens['gpt-3.5-turbo'] += used_tokens
-            ungrounded_suggestions = response.split('\n')
-            ungrounded_suggestions = [r for r in ungrounded_suggestions if r != '']
-            suggestions = ungrounded_suggestions
-            grounded_suggestions = []
-            added_ids = set()
-            i = 1
-            if intent ==intents.show_comparison:
-                ungrounded_suggestions = compare_list
-            if intent == intents.shown_cart :
-                ungrounded_suggestions = cart
-            for q in ungrounded_suggestions:
-                d, score = self.retriever.search(q, limit=1)[0]
-                if score > 0.4 and d['id'] != args['product']['id'] and d['id'] not in added_ids:
-                    grounded_suggestions.append(d)
-                    added_ids.add(d['id'])
-                    i += 1
-
-            # retrieve up to 10 results, remove the current product id doc, and get the next 2-3 results
-            if next_intent == intents.select_i :
-                grounded_suggestions = grounded_suggestions[(args['page']-1)*2 : args['page']*2]
-                golden_result_position = random.randint(0, len(grounded_suggestions))
-                prdt = args['product']
-                if len(cart) >0 and args['path_pos'] < len(args['path']) -3 and args['path'][args['path_pos']+3] in [ intents.add_to_cart, intents.remove_from_cart] :
-                    prdt = grounded_suggestions[golden_result_position]
-                    other_product = prdt
-                elif len(compare_list) >0 and args['path_pos'] < len(args['path']) -3 and args['path'][args['path_pos']+3] in [intents.add_for_compare, intents.remove_from_compare] :
-                    prdt = grounded_suggestions[golden_result_position]
-                    other_product = prdt
+        elif intent in [ intents.shown_cart, intents.show_comparison] :
+            
+            # prdt = other_product
+            # if prdt == None :
+            prdt = aux_cart[cart_i -1]
+            if intent == intents.show_comparison:
+                prdt = aux_compare[compare_i-1]
+            other_product = prdt
+            if intent == intents.show_comparison:
+                ungrounded_suggestions = compare_list 
+            elif intent == intents.shown_cart :
+                ungrounded_suggestions = cart 
+            
+            if next_intent in [intents.select_i, intents.select_i_remove_from_cart, intents.select_i_remove_from_compare] :
                 
-                grounded_suggestions.insert(golden_result_position, prdt)
-            else:
-                grounded_suggestions = grounded_suggestions[(args['page']-1)*3 : args['page']*3]
-            
-            search_results = grounded_suggestions
-
-            
-            grounded_suggestions = [f"id: {j+1}, {self.product_to_string(d, shortest=True)}" for j, d in enumerate(grounded_suggestions)] # rating: {d['overall']} ({d['vote']}), 
-            # may need to handle grounded suggestions for compare and cart list !!!
-            if prev_intent == intents.more_options:
-                prompt_template = SHOW_MORE_RESULTS_PROMPT
-            elif prev_intent == intents.show_cart :
+                golden_result_position = random.randint(0, len(ungrounded_suggestions)-1)
+                
+                prdt_ind = ungrounded_suggestions.index(prdt)
+                ungrounded_suggestions = self.exchange_elements(ungrounded_suggestions, prdt_ind, golden_result_position)
+                other_product = prdt
+                
+            search_results = ungrounded_suggestions
+            grounded_suggestions = [f"id: {j+1}, {self.product_to_string(d, shortest=True)}" for j, d in enumerate(ungrounded_suggestions)] # rating: {d['overall']} ({d['vote']}), 
+            # need to handle grounded suggestions for compare and cart list !!!
+            if prev_intent == intents.show_cart :
                 prompt_template = SHOWN_CART_PROMPT
-                grounded_suggestions = [f"id: {j+1}, {self.product_to_string(d, shortest=True)}" for j, d in enumerate(ungrounded_suggestions)] # rating: {d['overall']} ({d['vote']}), 
-            
+                
+                
             elif prev_intent == intents.compare_products :
                 prompt_template = SHOW_COMPARISON_PROMPT
-                grounded_suggestions = [f"id: {j+1}, {self.product_to_string(d, shortest=True)}" for j, d in enumerate(ungrounded_suggestions)] # rating: {d['overall']} ({d['vote']}), 
+                
+            prompt = prompt_template['prompt'].format('\n'.join(grounded_suggestions))
+            json_format = prompt_template['json_format']
             
 
-            else:
-                prompt_template = SHOW_RESULTS_PROMPT
-
-            prompt = prompt_template['prompt'].format(args['query'], '\n'.join(grounded_suggestions))
-            if prev_intent in [intents.show_cart, intents.show_comparison] :
-                if prev_intent == intents.show_cart :
-                    state_list = args['cart']
-                else :
-                    state_list = args['compare_list']
-                    
-                search_results = state_list
-                prompt = prompt_template['prompt'].format(args['query'], '\n'.join(state_list) )
-            json_format = prompt_template['json_format']
-
-            if len(search_results) == 0:
-                returned_intent = intents.no_results
         
         elif intent == intents.open_domain_qa:
             
@@ -458,45 +513,58 @@ class DataGenerator:
         elif intent == intents.chitchat :
             prompt = CHITCHAT_PROMPT['prompt']
             json_format = CHITCHAT_PROMPT['json_format']
-            # model = 'gpt-4'
+            # model = gpt_4
         
         
         elif intent == intents.subjective_qa :
             prompt = SUBJECTIVE_QA_PROMPT['prompt']
             json_format = SUBJECTIVE_QA_PROMPT['json_format']
             multi_output = True
-            model = 'gpt-4'
+            model = gpt_4
         
         elif intent == intents.user_start:
             prompt = START_PROMPT_USER['prompt']
             json_format = START_PROMPT_USER['json_format']
             multi_output = True
         
-            #model = 'gpt-4'
+            #model = gpt_4
         
         elif intent == intents.repeat :
             prompt = REPEAT_PROMPT['prompt']
             json_format = REPEAT_PROMPT['json_format']
             multi_output = True
-            # model = 'gpt-4'
+            # model = gpt_4
         elif intent == intents.deny :
             prompt = DENY_PROMPT['prompt'].format(args['bot'])
             json_format = DENY_PROMPT['json_format']
-            # model = 'gpt-4'
+            # model = gpt_4
         elif intent == intents.stop :
             prompt = STOP_PROMPT['prompt']
             json_format = STOP_PROMPT['json_format']
             multi_output = True
-            # model = 'gpt-4'
+            # model = gpt_4
         
         elif intents.system_response in intent: # string in a string
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
             if prev_intent == intents.shown_attributes:
-                prompt = SHOWN_ATTRIBUTES_PROMPT['prompt'].format('\n'.join(args['product'][attributes]))
-                # json_format = SHOWN_ATTRIBUTES_PROMPT['json_format']
+                attr = ''
+                if 'attributes' in prdt :
+                    attr = '\n'.join(prdt[attributes])
+                elif 'description' in prdt :
+                    attr = prdt['description']
+                elif 'feature' in prdt :
+                    attr = prdt['feature']
+                prompt = SHOWN_ATTRIBUTES_PROMPT['prompt'].format(attr)
+                
             elif prev_intent in [intents.open_domain_qa, intents.deny, intents.chitchat, intents.subjective_qa]:
                 prompt = SYSTEM_PROMPT['prompt'].format(args['user'])
-            elif prev_intent in [intents.product_qa, intents.show_attributes, intents.remove_from_cart, intents.remove_from_compare, intents.add_for_compare, intents.add_to_cart]:
-                product_info = self.product_to_string(args['product'])
+            elif prev_intent in [intents.add_for_compare, intents.add_to_cart]:
+                prdt = other_product
+                product_info = self.product_to_string(prdt)
+            
                 prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format( product_info, args['user'])
             
             elif prev_intent == intents.repeat:
@@ -505,115 +573,147 @@ class DataGenerator:
             elif prev_intent == intents.product_qa :
 
                 prompt = SHOW_PRODUCT_PROMPT['prompt'].format( product_info, args['user'])
+
+            elif prev_intent in [intents.select_i_remove_from_compare, intents.select_i_remove_from_cart ] :
+                prdt = other_product
+
+                if prdt == None:
+                    if prev_intent == intents.select_i_remove_from_compare :
+                        prdt = aux_compare[compare_i]
+                    else :
+                        prdt = aux_cart[cart_i]
+                product_info_oth = self.product_to_string(prdt)
+                # compare_i -=1
+                last_shown_options_string = args['last_shown_options_string']
+                if last_shown_options_string == None :
+                    last_shown_options_string = args['bot']
+                prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format(product_info_oth,args['user'])
+                
+                if prev_intent == intents.select_i_remove_from_compare and 'compare_list' in args.keys() :
+                    compare_list = args['compare_list']
+                    compare_list.remove(prdt)
+                    other_product = prdt
+            
+            
+                if prev_intent == intents.select_i_remove_from_cart and 'cart' in args.keys():
+                    cart = args['cart']
+                    cart.remove(prdt)
+                    other_product = prdt
+
+
         
             
             else :
-                product_info = self.product_to_string(args['product'])
                 prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format( product_info, args['user'])
         
         elif intent == intents.show_cart : 
             prompt = SHOW_CART_PROMPT['prompt'].format(args['bot'])
             # json_format = SEARCH_PRODUCT_PROMPT['json_format']
-            model = 'gpt-4'
+            model = gpt_4
         
         elif intent == intents.buy_cart:
             prompt = BUY_CART_PROMPT['prompt'].format(args['bot'])
             
-            # model = 'gpt-4'
+            # model = gpt_4
+        # need to handle aux cart 
         elif intent == intents.add_to_cart:
+            if other_product!=None and self.recognize_transition(path, path_pos, intent) : # and other_product != aux_cart[cart_i] 
+                # this is to ensure if element from compare is added here if required
+                aux_cart.insert(cart_i, other_product)
             
-            if len(cart) > 0 :
-                product_info_oth = self.product_to_string(args['other_product'])
-                prdt = args['other_product']
-            else :
-                product_info_oth = self.product_to_string(args['product'])
-                prdt = args['product']
-            prompt = ADD_TO_CART_PROMPT['prompt'].format(product_info_oth,args['bot'])
+            prdt = aux_cart[cart_i]
+            product_info_oth = self.product_to_string(prdt)
+            cart_i +=1
+            other_product = prdt
+            last_shown_options_string = args['last_shown_options_string']
+            if last_shown_options_string == None :
+                last_shown_options_string = args['bot']
+            prompt = ADD_TO_CART_PROMPT['prompt'].format(product_info_oth,last_shown_options_string)
             
             if 'cart' in args.keys() :
                 cart = args['cart']
-            cart.append(prdt)
-            
-            model = 'gpt-4'
-        elif intent == intents.add_for_compare:
-            if len(compare_list) > 0 :
-                product_info_oth = self.product_to_string(args['other_product'])
-                prdt = args['other_product']
-            else :
-                product_info_oth = self.product_to_string(args['product'])
-                prdt = args['product']
 
+            cart.append(prdt)
+            temperature = 0.5
+            # model = gpt_4
+        # need to handle aux compare 
+        elif intent == intents.add_for_compare:
+            #### some major issue here
+            if other_product!=None and  self.recognize_transition(path, path_pos, intent) : # other_product != aux_compare[compare_i] and
+                # this is to ensure if element from cart is added here if required
+                aux_compare.insert(compare_i, other_product)
+            
+            prdt = aux_compare[compare_i]
+            product_info_oth = self.product_to_string(prdt)
+            compare_i +=1
+
+            other_product = prdt
+
+            last_shown_options_string = args['last_shown_options_string']
+            if last_shown_options_string == None :
+                last_shown_options_string = args['bot']
+            
             if 'compare_list' in args.keys():
                 compare_list = args['compare_list']
             compare_list.append(prdt)
             
 
-            prompt = ADD_FOR_COMPARE_PROMPT['prompt'].format(args['product'],args['bot'])
-            
-            model = 'gpt-4'
-        elif intent == intents.remove_from_compare:
-            prdt = args['other_product']
-            product_info_oth = self.product_to_string(prdt)
-
-            prompt = REMOVE_FROM_COMPARE_PROMPT['prompt'].format(prdt,args['bot'])
-            
-            if 'compare_list' in args.keys() :
-                compare_list = args['compare_list']
-                compare_list.remove(prdt)
-                other_product = None
-
-
-            
-            # model = 'gpt-4'
-        elif intent == intents.remove_from_cart:
-            prdt = args['other_product']
-            product_info = self.product_to_string(prdt)
-            prompt = REMOVE_FROM_CART_PROMPT['prompt'].format(prdt,args['bot'])
-            
-            if 'cart' in args.keys():
-                cart = args['cart']
-                cart.remove(prdt)
-                other_product = None
-
-            # model = 'gpt-4'
-
+            prompt = ADD_FOR_COMPARE_PROMPT['prompt'].format(product_info_oth,last_shown_options_string)
+            temperature = 0.5
+            # model = gpt_4
+        
         elif intent == intents.generic_product_query:
             
-            product_info = self.product_to_string(args['product'])
-            prompt = USER_GENERIC_PRODUCT_PROMPT['prompt'].format(args['product'],args['bot'])
-            
-            # model = 'gpt-4'
+            prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
+            prompt = USER_GENERIC_PRODUCT_PROMPT['prompt'].format(product_info,args['bot'])
+            # model = gpt_4
 
         elif intent == intents.product_qa:
-            product_info = self.product_to_string(args['product'])
-            prompt = PRODUCT_QA_PROMPT['prompt'].format(args['product'])
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
+            prompt = PRODUCT_QA_PROMPT['prompt'].format(product_info)
+            json_format  = PRODUCT_QA_PROMPT['json_format']
             
-            # model = 'gpt-4'
+            # model = gpt_4
         elif intent == intents.compare_products:
             
             delm = ', '
             prompt = COMPARE_PRODUCTS_PROMPT['prompt'].format(f"[{delm.join([ f'[{self.product_to_string(product)}]' for product in args['compare_list']])}]")
             
-            model = 'gpt-4'
+            model = gpt_4
         elif intent == intents.delivery_address:
-            # product_info = f"title: {args['product']['title']}, description: {args['product']['description']}, attributes: [{', '.join(args['product']['attributes'])}]"
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
+            
             loc = locations[random.randint(0, len(locations))]
-            product_info = self.product_to_string(args['product'])
             prompt = CHECK_DELIVERY_AVAILABILITY_PROMPT['prompt'].format(product_info, loc , args['user'])
             json_format = CHECK_DELIVERY_AVAILABILITY_PROMPT['json_format']
-            # model = 'gpt-4'
+            temperature = 0.2
+            # model = gpt_4
         
         elif intent == intents.delivery_check :
-            product_info = self.product_to_string(args['product'])
-            locs = args['product']['location']
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
+            locs = prdt['location']
             prompt = CHECK_DELIVERY_PROMPT['prompt'].format(args['delivery_address'], product_info , ", ".join(locs) )
-            # model = 'gpt-4'
+            temperature = 0.2
+            # model = gpt_4
         
         elif intent == intents.refine_query:
             
-            product_info = self.product_to_string(args['product'])
+            prdt = other_product
+            if prdt == None :
+                prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+            product_info = self.product_to_string(prdt)
             prompt = USER_PREFERENCE_PROMPT['prompt'].format(product_info)
-            # model = 'gpt-4'
+            # model = gpt_4
             json_format = USER_PREFERENCE_PROMPT['json_format']
         
         elif intent == intents.more_results :
@@ -633,14 +733,7 @@ class DataGenerator:
             prompt = IN_CONVERSATION_SYSTEM_PROMPT['prompt'].format( product_info, args['user'])
 
         
-        
-        # elif intent == intents.desc_product :
-        #     prompt = USER_PRODUCT_INFORMATION_PROMPT['prompt'].format(product_info, args['bot'])
-        
-        
-
-
-        model = 'gpt-3.5-turbo'
+        model = gpt_4_turbo
         
         #print(f"\n*** prompt ***\n{prompt}\n***\n")
 
@@ -658,8 +751,8 @@ class DataGenerator:
                 response = json.loads(response)
             except:
                 prompt = "fix the json below, expected format is {}, give only the correct json in your response nothing else:\n{}".format(json_format, response)
-                response, used_tokens = chatgpt_api(prompt, model='gpt-4', max_retries=7)
-                total_used_tokens['gpt-4'] += used_tokens
+                response, used_tokens = chatgpt_api(prompt, model=gpt_4, max_retries=7)
+                total_used_tokens[gpt_4] += used_tokens
                 if response is None:
                     write_error(f'ERROR: {prompt}')
                     return None, total_used_tokens, None, prompt
@@ -681,6 +774,15 @@ class DataGenerator:
             
             response = random.choice(options)
         
+        last_shown_options_string = None
+        if intent in [intents.option_selected]:
+            search_results = args['results']
+            results = [f"id: {i+1}, {self.product_to_string(d, shortest=True, append =['rating'])}" for i, d in enumerate(args['results'])]
+            results = '\n'.join(results)
+            text = response
+            last_shown_options_string = f' text : {text} , relevant results : \n {results}'
+            
+        
         state = {'search_results': search_results,
                  'golden_result_position': golden_result_position,
                  'intent': returned_intent,
@@ -688,21 +790,130 @@ class DataGenerator:
                  'compare_list' : compare_list,
                  'suggestions': suggestions,
                  'model': model, 
-                 'other_product': other_product}
-
+                 'other_product': other_product,
+                 'cart_i' :cart_i,
+                 'compare_i' : compare_i,
+                 'aux_compare' : aux_compare,
+                 'aux_cart' : aux_cart,
+                 'last_shown_options_string' : last_shown_options_string
+                 }
+        
         return response, total_used_tokens, state, prompt
+    
+    def get_path_stats(self, path) :
+        total_add_to_cart = 0
+        total_add_for_compare = 0
+        l = 0
+        for intent in path :
+            if intent == intents.add_for_compare :
+                total_add_for_compare +=1
+                l = 0
+            elif intent == intents.add_to_cart :
+                total_add_to_cart +=1
+                l = 0
+            else :
+                l+=1
+        if l > 0 :
+            total_add_to_cart +=1
 
-    def generate_conversation(self, product, max_length=30): #  pos ,
+
+        return total_add_to_cart, total_add_for_compare
+    
+    def get_random_products(self, products, product, x = 1) :
+        '''
+        randomly sample x products 
+        '''
+        aux_cart = [product]
+
+        for i in range(0, x+1) :
+            found = False
+            while(not found) :
+                l = random.randint(0, len(products)) 
+                prd = products[l]
+                if prd not in aux_cart :
+                    aux_cart.append(prd)
+                    found = True
+
+        return aux_cart
+    
+    def get_random_similar_products(self, products, product, y = 1) :
         
+        '''
+        randomly sample y -1 similar products 
+        similar product means check same category as product told by mave dataset
+        '''
+        aux_compare = [product]
+
+        for i in range(0, y+1) :
+            found = False
+            while(not found) :
+                l = random.randint(0, len(products)-1) 
+                prd = products[l]
+                if prd not in aux_compare  and prd['category'] == product['category']:
+                    aux_compare.append(prd)
+                    found = True
         
-        path_generator = TaskPathGenerator()
+
+        return aux_compare
+    
+
+    def generate_conversation(self, product, products ,max_length=30): #  pos ,
+        
+        skeleton = AltTaskPathGenerator()
+    
+        path_generator = TaskPathGenerator(graph = skeleton.graph)
         path = path_generator.generate_path(max_length=max_length)
-        # path = path_generator.get_path_from_file(pos, 'generated_paths.csv')
+        # path = ['start', 'search_product', 'show_results', 'more_results', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'suggest_product', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'compare_products', 'show_comparison', 'select_i_remove_from_compare', 'system_response_remove_from_compare', 'search_product', 'show_results', 'select_i', 'option_selected', 'add_to_cart', 'system_response_added_to_cart', 'stop']
+        # print(f"path: {path}")
+        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
+        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
+        #         "product_qa", "product_qa_system_response", "acknowledge", "in_conversation_system_response", "refine_query", "show_results", "select_i", "option_selected", "delivery_address", "delivery_check", "select_i", "option_selected", "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", "search_product", "stop"]
+        
+        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
+        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
+        #         "add_for_compare", "system_response_add_for_compare", "compare_products", 
+        #         "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", 
+        #         "search_product", "show_results", "select_i", "option_selected", 
+        #         "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", 
+        #          intents.select_i, intents.option_selected, 
+        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
+        #           "stop"]
+
+        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
+        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
+        #         "add_for_compare", "system_response_add_for_compare", "compare_products", 
+        #         "show_comparison",
+        #          intents.select_i, intents.option_selected, 
+        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
+        #           "stop"]
+
+        path = ["start", "suggest_product", "show_results", "select_i", "option_selected", intents.add_to_cart, 
+                intents.system_response_added_to_cart, intents.search_product, "show_results", "select_i", "option_selected", 
+                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
+                intents.shown_cart,
+                 intents.select_i_remove_from_cart,intents.system_response_cart_removal, intents.search_product, "show_results", "select_i", "option_selected", 
+                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
+                intents.shown_cart,
+                intents.select_i, intents.option_selected, intents.add_for_compare, intents.system_response_add_for_compare, 
+                intents.search_product, "show_results", "select_i", "option_selected", 
+                "add_for_compare", "system_response_add_for_compare",
+                intents.compare_products, intents.show_comparison, intents.acknowledge, intents.system_response , intents.buy_cart, intents.bought_cart,
+                  "stop"]
+        
+        
+        # path = path_generator.get_path_from_file(pos, 'generated_paths.csv') 
         path_length = len(path)
+        total_add_to_cart, total_add_for_compare = self.get_path_stats(path)
+
+        aux_cart = self.get_random_products(products, product, total_add_to_cart)
+        cart_i = 0
+        aux_compare = self.get_random_similar_products(products, product, total_add_for_compare)
+        compare_i = 0
+
 
         conversation = []
         prev_intent = None
-        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
+        total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
 
         results_page = 1
         
@@ -724,6 +935,7 @@ class DataGenerator:
         product_ids = None
         delivery_address = None
         other_product = None
+        last_shown_options_string = None
 
         for i, intent in enumerate(path):
             if intent == intents.stop:
@@ -760,6 +972,11 @@ class DataGenerator:
                                                                  'path' : path,
                                                                  "path_pos" : i,
                                                                  "other_product" : other_product,
+                                                                 "cart_i" : cart_i,
+                                                                 "aux_cart" : aux_cart,
+                                                                 "compare_i" : compare_i,
+                                                                 "aux_compare" : aux_compare,
+                                                                 'last_shown_options_string' :last_shown_options_string,
                                                                  })
             if response is None:
                 print("Got response None")
@@ -780,7 +997,7 @@ class DataGenerator:
             
             elif intent in [intents.search_product, intents.suggest_product, intents.refine_query]: # in search queries
                 results_page = 1
-            elif intent in [intents.show_results, intents.show_suggestions] and len(response['product_ids']) == 0:
+            elif intent in [intents.show_results] and len(response['product_ids']) == 0:
                 intent = intents.no_results
 
             intent = state['intent']
@@ -789,12 +1006,18 @@ class DataGenerator:
             cart = state['cart']
             compare_list = state['compare_list']
             other_product = state['other_product']
-            
+            aux_cart = state['aux_cart']
+            aux_compare = state['aux_compare']
             
             if state['suggestions'] != None:
                 response['suggestions'] = state['suggestions']
             if state['search_results'] != None:
                 search_results = state['search_results']
+            if state['cart_i'] != None :
+                cart_i = state['cart_i']
+            if state['compare_i'] !=None :
+                compare_i = state['compare_i']
+            last_shown_options_string = state['last_shown_options_string']
             
             # getting query from response 
             if 'query' in response:
@@ -819,7 +1042,7 @@ class DataGenerator:
             if 'product_ids' in response:
                 product_ids = response['product_ids']
             if 'address' in response and not isinstance(response, str):
-                delivery_address = state['address']
+                delivery_address = response['address']
 
             
 
@@ -828,7 +1051,7 @@ class DataGenerator:
             response['model'] = state['model']
             response['prompt'] = prompt
 
-            if intent in [intents.show_results, intents.show_suggestions ]:
+            if intent == intents.show_results :
                 response['results'] = [r['id'] for r in search_results]
 
                 response['results_str'] = '\n'.join([f"id: {j+1}, {self.product_to_string(d,shortest=True)}" for j, d in enumerate(search_results)])
@@ -837,6 +1060,8 @@ class DataGenerator:
                 response['selection'] = golden_result_position+1
 
             #print(response)
+            response['gtp_4_turbo'] = used_tokens[gpt_4_turbo]
+            response[gpt_4] = used_tokens[gpt_4]
             conversation.append(response)
 
             if role == 'system':
@@ -847,13 +1072,11 @@ class DataGenerator:
                 else :
                     prev_user_response = response['question']
             
-            total_used_tokens['gpt-3.5-turbo'] += used_tokens['gpt-3.5-turbo']
-            total_used_tokens['gpt-4'] += used_tokens['gpt-4']
+            total_used_tokens[gpt_4_turbo] += used_tokens[gpt_4_turbo]
+            total_used_tokens[gpt_4] += used_tokens[gpt_4]
             
-            # if intent == intents.no_results:
-            #     break
         
-        return conversation, total_used_tokens, product['id'], path
+        return conversation, total_used_tokens, product['id'], path, aux_cart, aux_compare
     
     def format_product(self, d):
         product = d.copy()
@@ -896,6 +1119,14 @@ class DataGenerator:
             for line in f:
                 d = json.loads(line.rstrip('\n'))
                 added_ids.add(d['id'])
+        with open("data/conversations5.jsonl",'r') as f:
+            for line in f:
+                d = json.loads(line.rstrip('\n'))
+                added_ids.add(d['id'])
+        with open("data/conversations6.jsonl",'r') as f:
+            for line in f:
+                d = json.loads(line.rstrip('\n'))
+                added_ids.add(d['id'])
         
         products = []
         with open(inventory_file, 'r') as file:
@@ -906,31 +1137,31 @@ class DataGenerator:
                     prdt = self.format_product(d)
                     products.append(prdt)
 
-        o = open('data/conversations5.jsonl', 'a')
-        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
+        o = open('data/conversations6.jsonl', 'a')
+        total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         completed = 0
         
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        with ThreadPoolExecutor(max_workers=20) as executor:
             futures = []
             # selected_paths_pos = [21,39,2,3,5,6,8,10,18]
             # pos = 0
             for prod in products[:limit]:
                 with pos_lock :
-                    futures.append(executor.submit(self.generate_conversation, prod)) # , selected_paths_pos[pos] 
+                    futures.append(executor.submit(self.generate_conversation, prod, products)) # , selected_paths_pos[pos] 
                     # pos +=1
             for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
-                conversation, used_tokens, product_id, path = future.result()
+                conversation, used_tokens, product_id, path, aux_cart, aux_compare = future.result()
                 with lock:
                     if len(conversation) > 0:
-                        o.write(json.dumps({"id": product_id, "path": path, "conversation": conversation}) + "\n")
+                        o.write(json.dumps({"id": product_id, "path": path,"aux_cart":aux_cart, "aux_compare": aux_compare , "conversation": conversation}) + "\n")
                         o.flush()
-                total_used_tokens['gpt-3.5-turbo'] += used_tokens['gpt-3.5-turbo']
-                total_used_tokens['gpt-4'] += used_tokens['gpt-4']
+                total_used_tokens[gpt_4_turbo] += used_tokens[gpt_4_turbo]
+                total_used_tokens[gpt_4] += used_tokens[gpt_4]
                 completed += 1
         
         print(total_used_tokens)
-        estimated_cost = (total_used_tokens['gpt-3.5-turbo']/2*0.0015/1000 + total_used_tokens['gpt-3.5-turbo']/2*0.002/1000) + \
-            (total_used_tokens['gpt-4']/2*0.03/1000 + total_used_tokens['gpt-4']/2*0.06/1000)
+        estimated_cost = (total_used_tokens[gpt_4_turbo]/2*0.001/1000 + total_used_tokens[gpt_4_turbo]/2*0.003/1000) + \
+            (total_used_tokens[gpt_4]/2*0.03/1000 + total_used_tokens[gpt_4]/2*0.06/1000)
         print("Estimated cost: ${:.2f}".format(estimated_cost))
 
 if __name__ == '__main__':

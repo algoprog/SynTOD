@@ -1,19 +1,20 @@
 # System prompts
 
 START_PROMPT = {
-    "prompt": "Your name is MarunaSalesAssociate. You are a taskbot developed by CIIR at UMass Amherst, that helps with selling products present in a product catalog. Write an intro prompt to the user, don't use emojis.",
+    "prompt": "Your name is Maruna Shopper. You are a taskbot developed by CIIR at UMass Amherst, that helps with selling products present in a product catalog. Write an intro prompt to the user, don't use emojis, keep it short.",
     "json_format": None
 }
 
 SHOW_RESULTS_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products present in an inventory. Given the following product results info for the query '{}':
+    "prompt": """Imagine you are a shopping assistant that helps with selling products present in an inventory. Given the following product results info for the query '{}':
 results: [
  
 {}
 ]
-Generate a compelling response that presents the results in the most appealing order based on the provided information. Encourage the user to select a product for options like adding it to the cart, or adding for compare, or making a purchase. Highlight only the key details to capture the user's interest, avoiding excessive details. If a result is not directly related to the query, don't include it. In case no relevant results are available, provide a friendly response and suggest the user try a different query.
-
-Use this format in your response, the text should include your full taskbot response:
+Generate a compelling response that presents all the results in the most appealing order based on the provided information. Encourage the user to select a product for options like adding it to the cart, or adding for compare, or making a purchase. Highlight only the key details to capture the user's interest, avoiding excessive details. If a result is not directly related to the query, don't include it. In case no relevant results are available, provide a friendly response and suggest the user try a different query.
+Put the product titles in '*' bold formatting, always use enumeration instead of bullet points.
+Include all enumerated product ids present in results.
+Use following format in your response, the text should include your full taskbot response:
 
 {{"text": ..., "product_ids": [...]}}""",
 
@@ -21,13 +22,14 @@ Use this format in your response, the text should include your full taskbot resp
 }
 
 SHOW_MORE_RESULTS_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products present in an inventory and already provided some results for a product suggestion. Given the following next product results info for the query '{}':
+    "prompt": """Imagine you are a shopping assistant that helps with selling products present in an inventory and already provided some results for a product suggestion. Given the following next product results info for the query '{}':
 results: [    
 {}
 ]
-Generate an engaging response that summarizes these additional results in the best order based on the presented info. Encourage the user to select a product for options like adding it to the cart, comparing, or making a purchase.  Mention only the most important info to attract the user, not all the details. If one result is not directly relevant to the query, don't include it. If no results are provided or no relevant results are in the given list, give an appropriate response and tell the user to try something else.
-
-Use this format in your response, the text should include your full taskbot response:
+Generate an engaging response that summarizes all of these additional results in the best order based on the presented info. Encourage the user to select a product for options like adding it to the cart, comparing, or making a purchase.  Mention only the most important info to attract the user, not all the details. If one result is not directly relevant to the query, don't include it. If no results are provided or no relevant results are in the given list, give an appropriate response and tell the user to try something else.
+Put the product titles in '*' bold formatting, always use enumeration instead of bullet points.
+Include all enumerated product ids present in results.
+Use following format in your response, the text should include your full taskbot response:
 
 {{"text": ..., "product_ids": [...]}}""",
 
@@ -35,17 +37,17 @@ Use this format in your response, the text should include your full taskbot resp
 }
 
 FIND_SUGGESTIONS_PROMPT = {
-    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory. Give {} most popular product name suggestions for the query '{}', one in each line, no quotes or enumeration.",
+    "prompt": "Imagine you are a shopping assistant that helps with selling products present in an inventory. Give {} most popular product name suggestions for the query '{}', one in each line, no quotes or enumeration.",
     "json_format": None
 }
 
 OPTION_SELECTED_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products present in an inventory and the user just selected the following product: 
+    "prompt": """Imagine you are a shopping assistant that helps with selling products present in an inventory and the user just selected the following product: 
 
 title: {}
 description: {}
 
-Generate a system response and provide options for the user, such as viewing the product's attributes, adding it to the cart, purchasing it, or adding it for comparison. Please provide only the text of the response.""",
+Generate a concise system response and provide options for the user, such as viewing the product's attributes, adding it to the cart, purchasing it, or adding it for comparison. Please provide only the text of the response.""",
     
     "json_format": None
 }
@@ -53,22 +55,26 @@ Generate a system response and provide options for the user, such as viewing the
 
 
 SHOW_PRODUCT_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products present in an inventory. Given the following product info:
+    "prompt": """Imagine you are a shopping assistant that helps with selling products present in an inventory. Given the following product info:
 
 {}
+And last user utterance : {}
 
-Generate a compelling response that describes the product. You may highlight most relevant feature in the given product information. Ask the user if they would like to buy it or add it to their cart. If the response is short, consider including a helpful tip or fun fact. Provide only the text of the response, keeping it clear and concise.""",
+Put the product title in '*' bold formatting.
+Generate a compelling response that describes the product or answers users question if asked. You may highlight most relevant feature in the given product information. Ask the user if they would like to buy it or add it to their cart. Provide only the text of the response, keeping it clear.""",
 
     "json_format": None
 }
 
 BOUGHT_CART_PROMPT = {
-    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory, and the user has just confirmed they are done with the shopping and want to buy the cart. Write an engaging system response for the end of the shopping experience. Keep it short.",
+    "prompt": "Imagine you are a shopping assistant that helps with selling products present in an inventory, and the user has just confirmed they are done with the shopping and want to buy the cart. Write an engaging system response for the end of the shopping experience. Keep it short.",
     "json_format": None
 }
 
 IN_CONVERSATION_SYSTEM_PROMPT = {
-    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory and the user is currently in conversation. Here is the product info:\n{}\nGive an engaging response to the user below, don't give any detailed instructions, give only the text in your response, do not ask user to click on anything but you can ask him to type the need:\nuser: {}",
+    "prompt": """Imagine you are a shopping assistant that helps with selling products present in an inventory and the user is currently in conversation. Here is the product info:\n{}\nGive an engaging response to the user below, don't give any detailed instructions, give only the text in your response, you can ask user to type the need:\nuser: {}
+    Do not ask following things from user: Payment information, shipping address, quantity to buy, any button to click.
+    """,
     "json_format": None
 }
 
@@ -78,12 +84,12 @@ SYSTEM_PROMPT = {
 }
 
 SYSTEM_REPEAT_PROMPT = {
-    "prompt": "Imagine you are a taskbot assistant that helps with selling products present in an inventory and the user just asked you to repeat your response. Give only the text in your response nothing else:\nbot{}\nuser: {}",
+    "prompt": "Imagine you are a shopping assistant that helps with selling products present in an inventory and the user just asked you to repeat your response. Give only the text in your response nothing else:\nbot{}\nuser: {}",
     "json_format": None
 }
 
 SHOWN_ATTRIBUTES_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products on an ecommerce platform and the user just asked for the attributes. Write a response to the user using the list below:
+    "prompt": """Imagine you are a shopping assistant that helps with selling products on an ecommerce platform and the user just asked for the attributes. Write a response to the user using the list below:
 
 {}
 If attributes are more than 5 then retain only 5 pertinent attributes that you believe will most effectively persuade the user to make a purchase. 
@@ -92,23 +98,29 @@ Give only the text of the response.""",
 }
 
 SHOWN_CART_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products on an ecommerce platform and the user just asked for showing shopping cart list done till now. Write a response to the user using the list below:
+    "prompt": """Imagine you are a shopping assistant that helps with selling products on an ecommerce platform and the user just asked for showing shopping cart list done till now. Write a response to the user using the list below:
 
 {}
-Give only the text of the response.""",
-    "json_format": None
+Put the product titles in '*' bold formatting, always use enumeration instead of bullet points. Summarize the cart contents concisely.
+Use this format in your response, the text should include your full taskbot response:
+
+{{"text": ..., "product_ids": [...]}}.""",
+    "json_format": "{\"text\": ..., \"product_ids\": [...]}"
 }
 
 SHOW_COMPARISON_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products on an ecommerce platform and the user just asked for comparison between products. Write a response summarizing differences between products to the user using the product list below:
+    "prompt": """Imagine you are a shopping assistant that helps with selling products on an ecommerce platform and the user just asked for comparison between products. Write a response summarizing differences between products to the user using the product list below:
 
 {}
-Give only the text of the response.""",
-    "json_format": None
+Put the product titles in '*' bold formatting. 
+Use this format in your response, the text should include your full taskbot response:
+
+{{"text": ..., "product_ids": [...]}}.""",
+    "json_format": "{\"text\": ..., \"product_ids\": [...]}"
 }
 
 ASK_CLARIFICATION_PROMPT = {
-    "prompt": """Imagine you are a taskbot assistant that helps with selling products on an ecommerce platform and the user just asked for a generic product suggestion. Write a response asking clarification from the user to be more specific or provide details for the suggestion:
+    "prompt": """Imagine you are a shopping assistant that helps with selling products on an ecommerce platform and the user just asked for a generic product suggestion. Write a response asking clarification from the user to be more specific or provide details for the suggestion:
 Use following conversation to construct Clarification question:
 {}
 
@@ -118,6 +130,15 @@ Clarifications: What color are looking for? Any specific brands you are interest
 
 Give only the text of the response.""",
     "json_format": None
+}
+
+CHECK_DELIVERY_PROMPT = {
+    "prompt" : """ Imagine you are a shopping assistant that helps with selling products on an ecommerce platform and the user just asked whether given product is available for delivery in {}. 
+    According to the product catalog, the product {} is available in following locations : {}
+    Write a response to the user whether the product could be delivered or not.
+
+    Give only the text of the response.""",
+    "json_format" : None
 }
 
 
@@ -151,7 +172,7 @@ Use this format in your response:
 }
 
 SUGGEST_PRODUCT_PROMPT = {
-    "prompt": """You are a human user talking to a voice-based taskbot that helps with selling products on an ecommerce platform. Write ONE single or multi sentence short prompt to the taskbot asking for product suggestions/recommendations based on some preferences or choices. The query shouldn't mention some specific product name, but the following products should be relevant result:
+    "prompt": """You are a human user talking to a voice-based taskbot that helps with selling products on an ecommerce platform. Write ONE single or multi sentence short prompt to the taskbot asking for product suggestions/recommendations based on some preferences or choices. The query shouldn't mention the product name, but the following products should be relevant result:
 
 {}
 Give slots for query, and list of attributes (attributes_list)
@@ -189,14 +210,16 @@ give me the last option
 I'll go with the x product
 third one please
 
-Don't just copy the examples, be creative. You don't need to mention the number of the option always. Try to avoid mentioning the exact product name. One in each line, only the text.""",
+Don't just copy the examples, be creative. You don't need to mention the number of the option always. 
+Try to avoid mentioning the exact product name and do not ask to add to cart or for compare just give the prompts for selection of the option. 
+One in each line, only the text.""",
     "json_format": None
 }
 
 # 
 SHOW_ATTRIBUTES_BEGIN_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a 3 prompts to the bot confirming to start describing the product's attributes for product {}. One in each line, no enumeration, use simple diverse human-like language, no quotes. Examples:
-
+No enumeration
 text : 
 show me the product's features
 what's the products USP
@@ -218,7 +241,7 @@ SHOW_CART_PROMPT = {
 }
 
 ACKNOWLEDGE_PROMPT = {
-    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write 3 prompts to the bot acknowledging that you want to continue with the presented product/result. Don't mention any specific product name. One in each line, no enumeration, use simple diverse human-like language, no quotes.",
+    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write 3 prompts to the bot acknowledging that you want to continue with the presented product/result / conversation. Don't mention any specific product name. One in each line, no enumeration, use simple diverse human-like language, no quotes.",
     "json_format": None
 }
 
@@ -294,7 +317,14 @@ BUY_CART_PROMPT = {
 }
 
 ADD_TO_CART_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to add this product to the shopping cart. Examples: Add x to the cart, Put it in the cart.\nBot: {}
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
+    Write a response to ask the bot to add this product to the shopping cart. 
+    Sometimes do not directly state the name of this product while asking to add to cart, in such a case, you can use contextual cues or references like Add second one in cart
+    Response should not be very short like: add to cart. 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
+    
+    
+    Examples: Add x to the cart, Put it in the cart.\nBot: {}
     
     
     Use following format in the response:
@@ -306,7 +336,13 @@ ADD_TO_CART_PROMPT = {
 }
 
 REMOVE_FROM_CART_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. Write a response to ask the bot to remove this product from the shopping cart. Examples: Take x out from the cart, remove x .\nBot: {}
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. 
+    Write a response to ask the bot to remove this product from the shopping cart. 
+    Sometimes do not directly state the name of this product while asking to remove from cart, in such a case, you can use contextual cues or references like remove second one from cart
+    Response should not be very short like: remove. 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
+    
+    Examples: Take x out from the cart, remove x .\nBot: {}
     
     
     Use following format in the response:
@@ -344,7 +380,13 @@ List of products is the list of title of products for comparison:
 }
 
 ADD_FOR_COMPARE_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to add this product to the compare list. Examples: Add x to the compare list, Put x for comparison. No quotes or enumeration.\nBot: {}
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
+    Craft a response requesting the bot to include this item in the comparison list.
+    Sometimes do not directly state the name of this product while asking to add to compare, in such a case, you can use contextual cues or references like Add second one for comparision
+    Response should not be very short like compare or add compare. 
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
+    Some Examples: Add x to the compare list, Put x for comparison. Select the last option for comparison.
+    No quotes or enumeration.\nBot: {}
     
     
     Use following format in the response:
@@ -356,7 +398,11 @@ ADD_FOR_COMPARE_PROMPT = {
 }
 
 REMOVE_FROM_COMPARE_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your compare list. Write a response to ask the bot to remove this product from the compare list. Examples: Do not use x for comparison, remove x .\nBot: {},
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your compare list. Write a response to ask the bot to remove this product from the compare list, response should not be very short. 
+    Sometimes do not directly state the name of this product while asking to remove, in such a case, you can use contextual cues or references like remove second one from comparision
+    If the product's name is lengthy, utilize distinct and recognizable words from its name for reference.
+    
+    Expected Examples: Do not use x for comparison, remove x , remove the last option.\nBot: {},
     
     Use following format in the response:
 
@@ -373,11 +419,16 @@ USER_GENERIC_PRODUCT_PROMPT = {
 }
 
 CHECK_DELIVERY_AVAILABILITY_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered to some country say USA, UK, Canada, India, Brazil, etc. Examples: Is it available for delivery in country x, Could it be delivered to x. \nBot: {}
-    
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. Write a response to ask the bot to check whether it could be delivered in {}. Examples: Is it available for delivery in country x, Could it be delivered to x. \nBot: {}
+    You must mention the name of country in text 
     Use following format in the response just keep name of country in the address:
     {{\"text\":..., \"address\":...}}
     
     """,
     "json_format": "{\"text\":..., \"address\":...}"
+}
+
+USER_PRODUCT_INFORMATION_PROMPT = {
+    "prompt": "You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a prompt to the bot which asks to describe the product: {}. Question should be short and in a natural language flow. Give only text in your response nothing else.  No quotes or enumeration. \nBot: {}", 
+    "json_format": None
 }

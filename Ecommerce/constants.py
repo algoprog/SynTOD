@@ -11,9 +11,9 @@ title = 'title'
 rating = 'overall'
 ratingCount = 'vote'
 
+locations = [ "United States", "United Kingdom", "South Africa", "Australia", "India", "Thailand", "Greece", "Bangladesh", "China", "Canada", "Mexico", "France", "Germany", "Japan", "South Korea"]
 # openai_keys = ['']
 openai_key = ''
-
 class Intents:
     # register all intents here
 
@@ -44,7 +44,7 @@ class Intents:
         self.repeat = 'repeat'
         self.deny = 'deny'
         self.stop = 'stop'
-        self.dangerous_product = 'dangerous_product' # not used
+        # self.dangerous_product = 'dangerous_product' # not used
 
 
         # User and untracked 
@@ -62,6 +62,7 @@ class Intents:
         self.generic_product_query = 'generic_product_query'
         self.product_qa = 'product_qa'
         self.delivery_address = 'delivery_address'
+        # self.desc_product = 'describe_product'
 
 
         # system
@@ -72,7 +73,8 @@ class Intents:
         self.option_selected = 'option_selected'
         self.shown_attributes = 'shown_attributes'
         self.show_suggestions = 'show_suggestions'
-        self.product_info = 'product_info'
+        # self.product_info = 'product_info'
+        self.delivery_check = 'delivery_check'
         
 
         # undecided and untracked 
@@ -91,7 +93,7 @@ class Intents:
 
         # No need of prompts for following states: string in string => intent in intent!! 
         # all have single prompt where conv is provided : IN_CONVERSATION_SYSTEM_PROMPT
-
+        self.product_qa_system_response = 'product_qa_system_response'
         self.system_response_cart_removal = 'system_response_cart_removal'
         self.system_response_added_to_cart = 'system_response_added_to_cart'
         self.system_response_add_for_compare = 'system_response_add_for_compare'
@@ -133,6 +135,8 @@ intents = Intents()
     
 #     intents.no_results : 'no_results',
 
+#     intents.delivery_check : CHECK_DELIVERY_PROMPT ,
+
 
 
 #     # user
@@ -166,12 +170,12 @@ intents = Intents()
 # }
 
 slots_map = {
-intents.delivery_address : {"text":"", "address": ""},
-intents.remove_from_compare : {"text": "", "title": "", "product_id":""},
+intents.delivery_address : {"text":"", "address": ""}, # address is just the country name 
+intents.select_i_remove_from_compare : {"text": "", "title": "", "product_id":""},
 intents.add_for_compare :  {"text": "", "title": "", "product_id":""},
 intents.compare_products : {"text": "", "query": "", "list_of_products":""},
 intents.refine_query : {"text": "", "query": "", "attributes_list":"" },
-intents.remove_from_cart : {"text": "", "title": "", "product_id":""} , 
+intents.select_i_remove_from_cart : {"text": "", "title": "", "product_id":""} , 
 intents.add_to_cart : {"text": "", "title": "", "product_id":""} ,
 intents.open_domain_qa : {"question": "", "topic": ""},
 intents.product_qa : {"question": "", "title": "", "product_id":""},
