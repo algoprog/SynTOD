@@ -20,8 +20,8 @@ def write_jsonl(file_path, entry):
 
 
 
-filename = "./data/conversations6.jsonl"
-extracted_file = "./data/extracted_conversations.jsonl"
+filename = "./data/conversations_final.jsonl"
+extracted_file = "./data/extracted_conversations_final.jsonl"
 data = read_jsonl(filename)
 
 for conversation in data :

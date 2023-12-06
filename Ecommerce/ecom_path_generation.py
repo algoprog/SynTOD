@@ -10,7 +10,7 @@ import csv
 logging.getLogger().setLevel(logging.INFO)
 
 
-def plot_states_frequency(list_of_lists):
+def plot_states_frequency(list_of_lists, num_paths):
     string_counts = {}
 
     for lst in list_of_lists:
@@ -29,7 +29,7 @@ def plot_states_frequency(list_of_lists):
     sorted_frequencies = [frequencies[i] for i in sorted_indices]
     sum_freq = sum(sorted_frequencies)
     max_freq = max(sorted_frequencies)
-    sorted_frequencies = [ freq  for freq in sorted_frequencies]
+    sorted_frequencies = [ freq/max_freq for freq in sorted_frequencies]
 
     plt.figure(figsize=(20, 10))
     plt.bar(sorted_strings, sorted_frequencies)
@@ -39,7 +39,7 @@ def plot_states_frequency(list_of_lists):
     plt.xticks(rotation='vertical')
     plt.subplots_adjust(bottom=0.25)
     plt.show()
-    plt.savefig("plot_states_frequency.png")
+    plt.savefig(f"plot_states_frequency_{num_paths}.png")
 
 
 class TaskPathGenerator:
@@ -162,7 +162,7 @@ class TaskPathGenerator:
                 '''
                     Limit the number of consecutive clarifying questions
                 '''
-                if clarifying_question_number >= num_clari:
+                if clarifying_question_number > num_clari:
                     current_node = intents.show_results
                     clarifying_question_number = 0
                 else:
@@ -229,7 +229,7 @@ if __name__ == '__main__':
     skeleton = AltTaskPathGenerator()
     cg = TaskPathGenerator(graph = skeleton.graph)
 
-    num_paths = 100
+    num_paths = 4000
 
     # path = cg.generate_path(max_length=30, num_clari=4)
 
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     # for p in paths[:20]:
     #     print(' -> '.join(p))
 
-    plot_states_frequency(paths)
+    plot_states_frequency(paths, num_paths)
 
 
 

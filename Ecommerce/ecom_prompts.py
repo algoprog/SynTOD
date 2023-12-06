@@ -220,8 +220,9 @@ One in each line, only the text.""",
 
 # 
 SHOW_ATTRIBUTES_BEGIN_PROMPT = {
-    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a 3 prompts to the bot confirming to start describing the product's attributes for product {}. One in each line, no enumeration, use simple diverse human-like language, no quotes. Examples:
+    "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. Write a prompt to the bot confirming to start describing the product's attributes for product {}. Use simple diverse human-like language, no quotes. Examples:
 No enumeration
+Avoid using complete name of the product, keep the product name short and do not describe product yourself.
 text : 
 show me the product's features
 what's the products USP

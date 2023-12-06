@@ -465,7 +465,7 @@ class DataGenerator:
             product_info = self.product_to_string(prdt)
             prompt = SHOW_ATTRIBUTES_BEGIN_PROMPT['prompt'].format(product_info)
             json_format = SHOW_ATTRIBUTES_BEGIN_PROMPT['json_format']
-            multi_output = True
+            # multi_output = True
         
         elif intent == intents.acknowledge:
             # model = gpt_4
@@ -645,7 +645,7 @@ class DataGenerator:
             
             prompt_list = [ADD_TO_CART_PROMPT, ADD_TO_CART_REFERENTIAL_PROMPT]
             z = random.randint(0, len(prompt_list)-1)
-            temperature = 0.8
+            temperature = 0.5
             prompt = prompt_list[z]['prompt'].format(product_info_oth,last_shown_options_string)
             json_format  = prompt_list[z]['json_format']
             # model = gpt_4
@@ -660,6 +660,7 @@ class DataGenerator:
             prdt = aux_compare[compare_i]
             product_info_oth = self.product_to_string(prdt)
             compare_i +=1
+            temperature = 0.5
 
             other_product = prdt
 
@@ -797,9 +798,9 @@ class DataGenerator:
                     response = None
         elif multi_output:
             options = []
-            if intent == intents.show_attributes :
-                contents = response.split("\n")
-                options = [json.loads(content) for content in contents if 'text' in content]
+            # if intent == intents.show_attributes :
+            #     contents = response.split("\n")
+            #     options = [json.loads(content) for content in contents if 'text' in content]
 
                 
             if len(options)==0 :
@@ -898,44 +899,6 @@ class DataGenerator:
     
         path_generator = TaskPathGenerator(graph = skeleton.graph)
         path = path_generator.generate_path(max_length=max_length)
-
-        # path = ['start', 'search_product', 'show_results', 'more_results', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'suggest_product', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'compare_products', 'show_comparison', 'select_i_remove_from_compare', 'system_response_remove_from_compare', 'search_product', 'show_results', 'select_i', 'option_selected', 'add_to_cart', 'system_response_added_to_cart', 'stop']
-        # print(f"path: {path}")
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
-        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
-        #         "product_qa", "product_qa_system_response", "acknowledge", "in_conversation_system_response", "refine_query", "show_results", "select_i", "option_selected", "delivery_address", "delivery_check", "select_i", "option_selected", "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", "search_product", "stop"]
-        
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
-        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare", "compare_products", 
-        #         "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", 
-        #         "search_product", "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", 
-        #          intents.select_i, intents.option_selected, 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
-        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare", "compare_products", 
-        #         "show_comparison",
-        #          intents.select_i, intents.option_selected, 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", intents.add_to_cart, 
-        #         intents.system_response_added_to_cart, intents.search_product, "show_results", "select_i", "option_selected", 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-        #         intents.shown_cart,
-        #          intents.select_i_remove_from_cart,intents.system_response_cart_removal, intents.search_product, "show_results", "select_i", "option_selected", 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-        #         intents.shown_cart,
-        #         intents.select_i, intents.option_selected, intents.add_for_compare, intents.system_response_add_for_compare, 
-        #         intents.search_product, "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare",
-        #         intents.compare_products, intents.show_comparison, intents.acknowledge, intents.system_response , intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-        
         
         # path = path_generator.get_path_from_file(pos, 'generated_paths.csv') 
         path_length = len(path)
@@ -1142,31 +1105,25 @@ class DataGenerator:
         l = random.randint(0, len(locations))
         d['location'] = locations[:l]
         return d
+    
+    def add_ids(self, older_files, added_ids) :
+        
+        for file in older_files :
+            with open(file,'r') as f:
+                for line in f:
+                    d = json.loads(line.rstrip('\n'))
+                    added_ids.add(d['id'])
+
+
+        return added_ids
 
 
     def generate_conversations(self, limit=10):
         added_ids = set()
-        with open("data/conversations.jsonl",'r') as f:
-            for line in f:
-                d = json.loads(line.rstrip('\n'))
-                added_ids.add(d['id'])
-        with open("data/conversations2.jsonl",'r') as f:
-            for line in f:
-                d = json.loads(line.rstrip('\n'))
-                added_ids.add(d['id'])
-        with open("data/conversations4.jsonl",'r') as f:
-            for line in f:
-                d = json.loads(line.rstrip('\n'))
-                added_ids.add(d['id'])
-        with open("data/conversations5.jsonl",'r') as f:
-            for line in f:
-                d = json.loads(line.rstrip('\n'))
-                added_ids.add(d['id'])
-        with open("data/conversations6.jsonl",'r') as f:
-            for line in f:
-                d = json.loads(line.rstrip('\n'))
-                added_ids.add(d['id'])
+        older_files = ["data/conversations.jsonl", "data/conversations2.jsonl", "data/conversations4.jsonl", 
+                       "data/conversations5.jsonl", "data/conversations6.jsonl", "data/conversations_final.jsonl"]
         
+        added_ids = self.add_ids(older_files, added_ids)
         products = []
         with open(inventory_file, 'r') as file:
             for line in file:
@@ -1176,7 +1133,7 @@ class DataGenerator:
                     prdt = self.format_product(d)
                     products.append(prdt)
 
-        o = open('data/conversations6.jsonl', 'a')
+        o = open('data/conversations_final.jsonl', 'a')
         total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         completed = 0
         
@@ -1206,4 +1163,6 @@ class DataGenerator:
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=3)
+    generator.generate_conversations(limit=10)
+    # 0.26 3
+    # 0.37 3
