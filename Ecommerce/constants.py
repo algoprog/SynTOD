@@ -10,10 +10,11 @@ attributes = 'attributes'
 title = 'title'
 rating = 'overall'
 ratingCount = 'vote'
-
+inventory_file = 'data/final_product_catalog_v0.jsonl'
 locations = [ "United States", "United Kingdom", "South Africa", "Australia", "India", "Thailand", "Greece", "Bangladesh", "China", "Canada", "Mexico", "France", "Germany", "Japan", "South Korea"]
 # openai_keys = ['']
 openai_key = ''
+
 
 class Intents:
     # register all intents here

@@ -1,10 +1,10 @@
 import json
 
 
-mave_file = "./data/sampled_example_top_50_4200.jsonl"
-combined_file = "./data/review_metadata_combined_file.jsonl"
+mave_file = "./data/valid_sampled_example_top_50_5000.jsonl"
+combined_file = "./data/valid_review_metadata_combined_file.jsonl"
 
-product_catalog = "./data/product_catalog.jsonl"
+product_catalog = "./data/valid_product_catalog.jsonl"
 
 def write_to_jsonl(entry, file_path):
     with open(file_path, 'a') as file:

@@ -6,7 +6,7 @@ import torch
 import logging
 
 from sentence_transformers import SentenceTransformer
-
+from constants import *
 import numpy as np
 
 logging.getLogger().setLevel(logging.INFO)
@@ -130,7 +130,7 @@ class Retriever:
     def __init__(self):
         self.documents = []
         titles = []
-        with open('data/product_catalog.jsonl', 'r') as f:
+        with open(inventory_file, 'r') as f:
             for line in f:
                 d = json.loads(line)
                 self.documents.append(d)

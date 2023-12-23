@@ -12,13 +12,14 @@ from tqdm.auto import tqdm
 from ecom_path_generation import TaskPathGenerator
 from ecom_path_skeleton import UniversalPaths, AltTaskPathGenerator
 
+import google.generativeai as genai
 
 from ecom_prompts import *
 from ecom_retriever import Retriever
 from constants import *
 # from gpt4_free import GPT4_Free_API
 
-openai.api_key = openai_key
+# openai.api_key = openai_key
 lock = threading.Lock()
 gpt_resp_lock = threading.Lock()
 # inventory_file = "data/final_product_catalog_v0.jsonl"
@@ -28,6 +29,14 @@ pos_lock = threading.Lock()
 
 gpt_4_turbo = 'gpt-4-1106-preview'#'gpt-4-turbo'
 gpt_4 = 'gpt-4'
+
+GOOGLE_API_KEY = 'AIzaSyCqwA72HpU3wAASrwvhXUssTYahoBoON6o'
+
+genai.configure(api_key=GOOGLE_API_KEY)
+
+
+model = genai.GenerativeModel('gemini-pro')
+
 
 def write_error(error):
     with lock:
@@ -60,16 +69,19 @@ def gemini_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_t
 def chatgpt_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_tokens = 2000):
     for i in range(max_retries):
         try:
-            response = openai.ChatCompletion.create(
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                request_timeout=40,
-                messages=[{'role': 'user', 'content': prompt}]
-            )
-            write_gpt_resp(prompt,response)
-            used_tokens = response["usage"]["total_tokens"]
-            return response["choices"][0]["message"]["content"].strip(), used_tokens
+            # response = openai.ChatCompletion.create(
+            #     model=model,
+            #     max_tokens=max_tokens,
+            #     temperature=temperature,
+            #     request_timeout=40,
+            #     messages=[{'role': 'user', 'content': prompt}]
+            # )
+            # write_gpt_resp(prompt,response)
+            # used_tokens = response["usage"]["total_tokens"]
+            # return response["choices"][0]["message"]["content"].strip(), used_tokens
+            response = model.generate_content(prompt)
+            text = response.text
+            return text, 0
         except Exception as e:
             print(f"Error occurred: {e}. Retrying in {2} seconds...")
             time.sleep(2)
@@ -284,7 +296,7 @@ class DataGenerator:
         if shortest :
             f_S += f"product_title: {product['title']}"
 
-            if 'description' in product.keys() and len(product['description']) >0 :
+            if 'description' in product.keys() :
                 f_S += f", description: {product['description'][0]}"
             
         if short or shortest :
@@ -293,7 +305,7 @@ class DataGenerator:
             return f_S
 
         des = ''
-        if 'description' in product.keys() and len(product['description']) > 0:
+        if 'description' in product.keys() :
                 des = f", description:  {product['description'][0]}"
         f_S = f"title: {product['title']}{des}, user rating: {product['overall']}, reviewCount: ({product['reviewCount']}), attributes: {self.attri_to_string(product['attributes'])}"
 
@@ -1057,168 +1069,149 @@ class DataGenerator:
         other_product = None
         last_shown_options_string = None
         clarification_conversation = None
-        problem_with_product_ids = 0
 
-        try :
-            for i, intent in enumerate(path):
-                if intent == intents.stop:
-                    continue
-                if i % 2 == 0:
-                    role = 'system'
+        for i, intent in enumerate(path):
+            if intent == intents.stop:
+                continue
+            if i % 2 == 0:
+                role = 'system'
+            else:
+                role = 'user'
+            if i < path_length - 1:
+                next_intent = path[i + 1]
+            else:
+                next_intent = None
+
+            response, used_tokens, state, prompt = self.generate_response(intent, next_intent=next_intent, prev_intent=prev_intent, 
+                                                           args={'product': product, 
+                                                                 'query': query,
+                                                                 'page': results_page, 
+                                                                 'results': search_results,
+                                                                 'golden_result_position': golden_result_position,
+                                                                 'bot': prev_bot_response,
+                                                                 'user': prev_user_response,
+                                                                 'compare_list':compare_list,
+                                                                 'cart':cart,
+                                                                 'question' :question,
+                                                                 'product_id' :product_id,
+                                                                 'address' : address,
+                                                                 'title' : title,
+                                                                 'list_of_products' : list_of_products,
+                                                                 'attributes_list' : attributes_list,
+                                                                 'topic' : topic,
+                                                                 'product_name' : product_name,
+                                                                 'product_ids' : product_ids,
+                                                                 'delivery_address' : delivery_address,
+                                                                 'path' : path,
+                                                                 "path_pos" : i,
+                                                                 "other_product" : other_product,
+                                                                 "cart_i" : cart_i,
+                                                                 "aux_cart" : aux_cart,
+                                                                 "compare_i" : compare_i,
+                                                                 "aux_compare" : aux_compare,
+                                                                 'last_shown_options_string' :last_shown_options_string,
+                                                                 'clarification_conversation' : clarification_conversation,
+                                                                 })
+            if response is None:
+                print("Got response None")
+                write_gpt_resp_None(prompt, response)
+                response = extract_response(response, conversation, path, prompt)
+                if response is None :
+                    print("Exited path here!!")
+                    return response, total_used_tokens, product['id'], path
+            
+            if isinstance(response, str):
+                if "\"question\":" in response or "\"text\":" in response :
+                    response = json.loads(response)
                 else:
-                    role = 'user'
-                if i < path_length - 1:
-                    next_intent = path[i + 1]
-                else:
-                    next_intent = None
+                    response = {'text': response}
+            
+            if intent == intents.more_results:
+                results_page += 1
+            
+            elif intent in [intents.search_product, intents.suggest_product, intents.refine_query]: # in search queries
+                results_page = 1
+            elif intent in [intents.show_results] and len(response['product_ids']) == 0:
+                intent = intents.no_results
 
-                response, used_tokens, state, prompt = self.generate_response(intent, next_intent=next_intent, prev_intent=prev_intent, 
-                                                            args={'product': product, 
-                                                                    'query': query,
-                                                                    'page': results_page, 
-                                                                    'results': search_results,
-                                                                    'golden_result_position': golden_result_position,
-                                                                    'bot': prev_bot_response,
-                                                                    'user': prev_user_response,
-                                                                    'compare_list':compare_list,
-                                                                    'cart':cart,
-                                                                    'question' :question,
-                                                                    'product_id' :product_id,
-                                                                    'address' : address,
-                                                                    'title' : title,
-                                                                    'list_of_products' : list_of_products,
-                                                                    'attributes_list' : attributes_list,
-                                                                    'topic' : topic,
-                                                                    'product_name' : product_name,
-                                                                    'product_ids' : product_ids,
-                                                                    'delivery_address' : delivery_address,
-                                                                    'path' : path,
-                                                                    "path_pos" : i,
-                                                                    "other_product" : other_product,
-                                                                    "cart_i" : cart_i,
-                                                                    "aux_cart" : aux_cart,
-                                                                    "compare_i" : compare_i,
-                                                                    "aux_compare" : aux_compare,
-                                                                    'last_shown_options_string' :last_shown_options_string,
-                                                                    'clarification_conversation' : clarification_conversation,
-                                                                    })
-                if response is None:
-                    print("Got response None")
-                    write_gpt_resp_None(prompt, response)
-                    response = extract_response(response, conversation, path, prompt)
-                    if response is None :
-                        print("Exited path here!!")
-                        return response, total_used_tokens, product['id'], path
-                
-                if isinstance(response, str):
-                    if "\"question\":" in response or "\"text\":" in response :
-                        response = json.loads(response)
-                    else:
-                        response = {'text': response}
-                
-                if intent == intents.more_results:
-                    results_page += 1
-                
-                elif intent in [intents.search_product, intents.suggest_product, intents.refine_query]: # in search queries
-                    results_page = 1
-                elif intent in [intents.show_results] and len(response['product_ids']) == 0:
-                    intent = intents.no_results
+            intent = state['intent']
+            prev_intent = intent
+            golden_result_position = state['golden_result_position']
+            cart = state['cart']
+            compare_list = state['compare_list']
+            other_product = state['other_product']
+            aux_cart = state['aux_cart']
+            aux_compare = state['aux_compare']
+            clarification_conversation = state['clarification_conversation']
+            
+            if state['suggestions'] != None:
+                response['suggestions'] = state['suggestions']
+            if state['search_results'] != None:
+                search_results = state['search_results']
+            if state['cart_i'] != None :
+                cart_i = state['cart_i']
+            if state['compare_i'] !=None :
+                compare_i = state['compare_i']
+            last_shown_options_string = state['last_shown_options_string']
+            
+            # getting query from response 
+            if 'query' in response:
+                query = response['query']
+            if 'question' in response:
+                question = response['question']
+            if 'product_id' in response:
+                product_id = response['product_id']
+            if 'address' in response:
+                address = response['address']
+            if 'title' in response:
+                title = response['title']
+            if 'list_of_products' in response:
+                list_of_products = response['list_of_products']
+            if 'attributes_list' in response:
+                attributes_list = response['attributes_list']
+            if 'topic' in response:
+                topic = response['topic']
+            
+            if 'product_name' in response:
+                product_name = response['product_name']
+            if 'product_ids' in response:
+                product_ids = response['product_ids']
+            if 'address' in response and not isinstance(response, str):
+                delivery_address = response['address']
 
-                intent = state['intent']
-                prev_intent = intent
-                golden_result_position = state['golden_result_position']
-                cart = state['cart']
-                compare_list = state['compare_list']
-                other_product = state['other_product']
-                aux_cart = state['aux_cart']
-                aux_compare = state['aux_compare']
-                clarification_conversation = state['clarification_conversation']
-                
-                if state['suggestions'] != None:
-                    response['suggestions'] = state['suggestions']
-                if state['search_results'] != None:
-                    search_results = state['search_results']
-                if state['cart_i'] != None :
-                    cart_i = state['cart_i']
-                if state['compare_i'] !=None :
-                    compare_i = state['compare_i']
-                last_shown_options_string = state['last_shown_options_string']
-                
-                # getting query from response 
-                if 'query' in response:
-                    query = response['query']
-                if 'question' in response:
-                    question = response['question']
-                if 'product_id' in response:
-                    product_id = response['product_id']
-                if 'address' in response:
-                    address = response['address']
-                if 'title' in response:
-                    title = response['title']
-                if 'list_of_products' in response:
-                    list_of_products = response['list_of_products']
-                if 'attributes_list' in response:
-                    attributes_list = response['attributes_list']
-                if 'topic' in response:
-                    topic = response['topic']
-                
-                if 'product_name' in response:
-                    product_name = response['product_name']
-                if 'product_ids' in response:
-                    product_ids = response['product_ids']
-                if 'address' in response and not isinstance(response, str):
-                    delivery_address = response['address']
+            
 
-                
+            response['role'] = role
+            response['intent'] = intent
+            response['model'] = state['model']
+            response['prompt'] = prompt
 
-                response['role'] = role
-                response['intent'] = intent
-                response['model'] = state['model']
-                response['prompt'] = prompt
+            if intent == intents.show_results :
+                response['results'] = [r['id'] for r in search_results]
 
-                if intent == intents.show_results :
-                    # Comment this part out if this doesn't work
-                    # try : 
-                    #     relevant_search_results = []
-                    #     if product_ids != None :
-                    #         for prdt_id in product_ids :
-                    #             relevant_search_results.append(search_results[prdt_id - 1 ])
-                    #         for prdt in relevant_search_results :
-                    #             search_results.remove(prdt)
-                    #     relevant_search_results += search_results
-                    #     search_results = relevant_search_results
-                    # except : 
-                    #     problem_with_product_ids += 1 
-                    
-                    response['results'] = [r['id'] for r in search_results]
+                response['results_str'] = '\n'.join([f"id: {j+1}, {self.product_to_string(d,shortest=True)}" for j, d in enumerate(search_results)])
+            
+            elif intent == 'select_i':
+                response['selection'] = golden_result_position+1
 
-                    response['results_str'] = '\n'.join([f"id: {j+1}, {self.product_to_string(d,shortest=True)}" for j, d in enumerate(search_results)])
-                
-                elif intent == 'select_i':
-                    response['selection'] = golden_result_position+1
+            #print(response)
+            response['gtp_4_turbo'] = used_tokens[gpt_4_turbo]
+            response[gpt_4] = used_tokens[gpt_4]
+            conversation.append(response)
 
-                #print(response)
-                response['gtp_4_turbo'] = used_tokens[gpt_4_turbo]
-                response[gpt_4] = used_tokens[gpt_4]
-                conversation.append(response)
-
-                if role == 'system':
-                    prev_bot_response = response['text']
-                else:
-                    if 'text' in response :
-                        prev_user_response = response['text']
-                    else :
-                        prev_user_response = response['question']
-                
-                total_used_tokens[gpt_4_turbo] += used_tokens[gpt_4_turbo]
-                total_used_tokens[gpt_4] += used_tokens[gpt_4]
-                
-            if problem_with_product_ids > 0 :
-                print(f"Found {problem_with_product_ids} problems with product_ids")
-            return conversation, total_used_tokens, product['id'], path, aux_cart, aux_compare
-        except :
-            print(f"Found error in a conversation with product id : {product['id']}")
-            return conversation, total_used_tokens, product['id'], path, aux_cart, aux_compare
+            if role == 'system':
+                prev_bot_response = response['text']
+            else:
+                if 'text' in response :
+                    prev_user_response = response['text']
+                else :
+                    prev_user_response = response['question']
+            
+            total_used_tokens[gpt_4_turbo] += used_tokens[gpt_4_turbo]
+            total_used_tokens[gpt_4] += used_tokens[gpt_4]
+            
+        
+        return conversation, total_used_tokens, product['id'], path, aux_cart, aux_compare
     
     def format_product(self, d):
         product = d.copy()
@@ -1260,10 +1253,9 @@ class DataGenerator:
 
     def generate_conversations(self, limit=10):
         added_ids = set()
-        # older_files = ["data/conversations.jsonl", "data/conversations2.jsonl", "data/conversations4.jsonl", 
-        #                "data/conversations5.jsonl", "data/conversations6.jsonl", "data/conversations_final_1.jsonl",
-        #                "data/conversations_final.jsonl", 'data/conversations_final_r.jsonl', 'data/conversations_final_r_1.jsonl']
-        older_files = ['data/conversations_final_r_2.jsonl']
+        older_files = ["data/conversations.jsonl", "data/conversations2.jsonl", "data/conversations4.jsonl", 
+                       "data/conversations5.jsonl", "data/conversations6.jsonl", "data/conversations_final_1.jsonl",
+                       "data/conversations_final.jsonl"]
         
         added_ids = self.add_ids(older_files, added_ids)
         products = []
@@ -1275,11 +1267,11 @@ class DataGenerator:
                     prdt = self.format_product(d)
                     products.append(prdt)
 
-        o = open('data/conversations_final_r_2.jsonl', 'a')
+        o = open('data/conversations_final_r_gemini.jsonl', 'a')
         total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         completed = 0
         
-        with ThreadPoolExecutor(max_workers=20) as executor:
+        with ThreadPoolExecutor(max_workers=5) as executor:
             futures = []
             # selected_paths_pos = [21,39,2,3,5,6,8,10,18]
             # pos = 0
@@ -1305,16 +1297,6 @@ class DataGenerator:
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=40)
+    generator.generate_conversations(limit=30)
     # 0.26 3
     # 0.37 3
-    '''
-    20 :  {'gpt-4-1106-preview': 216121, 'gpt-4': 31256}
-            Estimated cost: $1.84
-    9 :  Estimated cost: $0.90
-    31 :  {'gpt-4-1106-preview': 322693, 'gpt-4': 38345}
-            Estimated cost: $2.37
-    40 :  {'gpt-4-1106-preview': 436949, 'gpt-4': 55665}
-            Estimated cost: $3.38
-Total = 2.74 + 2.37 + 3.38  = 8.49
-    '''

@@ -36,7 +36,7 @@ filename = "./data/extracted_conversations_final.jsonl"
 data = read_jsonl(filename)
 
 
-select_conversations = [16,17] # line 17 and 18
+select_conversations = [18,19] # line 18 and 19
 
 for conv_number in select_conversations :
     conv = data[conv_number]['conversation']
