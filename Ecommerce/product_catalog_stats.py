@@ -2,7 +2,7 @@ import json
 import random
 from constants import *
 
-inventory_file = "data/product_catalog.jsonl"
+inventory_file = inventory_file_4k # "data/product_catalog.jsonl"
 
 
 def get_attributes(attributes) :

@@ -1,7 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 from constants import *
-
+from ecom_path_skeleton import UniversalPaths, AltTaskPathGenerator
 
 
 def visualizeGraph(graph) :
@@ -14,14 +14,23 @@ def visualizeGraph(graph) :
             G.add_edge(node, edge) # , weight=weight
 
     # Define node positions for better layout
-    pos = nx.spring_layout(G)
+    pos = nx.spring_layout(G, scale=0.05, iterations=10)
+    # pos = nx.kamada_kawai_layout(G, scale = 5, dim = 2)
+    # pos = nx.nx_pydot.graphviz_layout(G, prog="dot") # , prog="dot"
+    # pos = nx.nx_pydot.pydot_layout(G ) # , prog="dot"
+    # pos = nx.circular_layout(G)
+    # pos = nx.nx_pydot.graphviz_layout(G)
+    # pos = nx.nx_pydot.graphviz_layout(G, prog="dot")
+    # pos = nx.planar_layout(G)
 
     # Draw the graph # 
-    nx.draw(G, pos, with_labels=True, node_size=1000, node_color='skyblue', font_size=10, font_color='black', font_weight='bold', arrowsize=20)
+    nx.draw(G, pos, with_labels=True, node_size=1000, node_color='skyblue', font_size=5, font_color='brown', font_weight='bold', arrowsize=10)
 
     # Add edge labels (weights)
     edge_labels = nx.get_edge_attributes(G, 'weight') # 
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='red')
+    
+    # nx.write_gexf(G, 'data/ecom_graph_visualize.gexf', version="1.2draft")
 
     # Show the plot
     plt.show()
@@ -29,152 +38,6 @@ def visualizeGraph(graph) :
 
 ci_weight  = 0.5
 
-#############################################################################################################
-
-# # user intents 
-# ecomm_start_intents = [
-                              
-#                               (intents.search_product, 0.25),  # slots : product type , attribute list  - e.g color, specifications 
-#                               (intents.suggest_product, 0.23), # slots : product ,  attribute list
-#                               (intents.open_domain_qa, 0.20),  # slots: topic, topic info?
-#                               (intents.chitchat, 0.07),
-#                               (intents.subjective_qa, 0.05),
-#                               (intents.dangerous_product, 0.03), # slots:  ? product with dangerous intent in conversation
-#                               (intents.generic_product_query, 0.07)
-#                               ]
-
-# ecomm_in_conversation_intents = [
-#                                 (intents.more_results, 0.20 * 0.7 * (1 - ci_weight)),
-                                
-                                
-#                                 (intents.acknowledge, 0.05 * 0.7 * (1 - ci_weight)),
-#                                 (intents.add_to_cart, 0.25 * 0.7 * (1 - ci_weight)),   # slots: product id
-#                                 (intents.remove_from_cart, 0.15 * 0.7 * (1 - ci_weight)),  # slots: product id
-#                                 (intents.user_preference, 0.15 * 0.7 * (1 - ci_weight)),  # slots: attributes list - use relevant attributes - use chatgpt 
-#                                 (intents.buy_cart, 0.15 * 0.7 * (1 - ci_weight)),   
-#                                 (intents.delivery_address, 0.05 * 0.7 * (1 - ci_weight)), # slots: address [city state pin code]
-                                
-#                                 (intents.product_qa, 0.7 * 0.15 * (1 - ci_weight)), # slots : product id and question 
-#                                 (intents.show_attributes, 0.1 * 0.15 * (1 - ci_weight)),  # slots: productid rename intent: show_attributes:-> summarize_product
-#                                 (intents.repeat, 0.2 * 0.15 * (1 - ci_weight)), 
-                                
-#                                 (intents.compare_products, 0.5 * 0.15 * (1 - ci_weight)),   # slots : products list of ids 
-#                                 (intents.add_for_compare, 0.30 * 0.15 * (1 - ci_weight)),   # slots: product id
-#                                 (intents.remove_from_compare, 0.20 * 0.15 * (1 - ci_weight)),  # slots: product id
-                                
-#                                 ]
-
-# ecom_intents_after_selection = [(intents.product_qa, 0.2 * (1 - ci_weight)),
-#                                 (intents.show_attributes, 0.2 * (1 - ci_weight)),
-#                                 (intents.add_to_cart, 0.2 * (1 - ci_weight)),
-#                                 (intents.add_for_compare, 0.15 * (1 - ci_weight)),		
-#                                 (intents.remove_from_cart, 0.15 * (1 - ci_weight)),
-#                                 (intents.remove_from_compare, 0.05 * (1 - ci_weight)),
-#                                 (intents.delivery_address, 0.05 * (1 - ci_weight))
-#                                 ]
-
-# graph_ecomm = {
-#             intents.stop: [],
-
-#             # from system states
-#             intents.start: ecomm_start_intents,                  
-
-#             intents.show_results: [(intents.select_i, 1.0 * 0.8 * (1 - ci_weight)),
-#                              (intents.more_results, 1.0 * 0.15 * (1 - ci_weight)),
-#                              (intents.user_preference, 1.0 * 0.05 * (1 - ci_weight) )
-#                              ],
-
-#             intents.clarifying_questions : [(intents.no_more_clarifying_questions, 0.3), (intents.clarifying_questions, 0.7)],
-
-#             intents.no_more_clarifying_questions : [(intents.refine_query, 1.0)],
-
-#             intents.shown_cart : [(intents.acknowledge, 0.3), (intents.buy_cart, 0.4), (intents.select_i, 0.3)],
-            
-
-
-#             intents.shown_attributes: ecomm_in_conversation_intents,
-
-#             intents.show_comparison : [(intents.select_i , 0.5)] + ecomm_in_conversation_intents,
-
-            
-            
-
-#             intents.option_selected: ecom_intents_after_selection,
-
-#             intents.system_response: ecomm_start_intents,
-
-#             intents.in_conversation_system_response: ecomm_in_conversation_intents,
-            
-#             intents.show_suggestions : [(intents.select_i, 1 * 0.8 * (1 - ci_weight)),
-#                                  (intents.more_results, 1 * 0.15 * (1 - ci_weight)),
-#                                  (intents.user_preference, 1.0 * 0.05 * (1 - ci_weight)),
-#                                 ],
-
-#             intents.system_response_cart_removal : [(intents.acknowledge, 0.3),(intents.suggest_product, 0.7)],
-#             intents.system_response_added_to_cart : [(intents.acknowledge,0.3), (intents.suggest_product, 0.5), (intents.buy_cart, 0.2)],
-#             intents.system_response_add_for_compare : [(intents.compare_products, 0.7)] + ecomm_in_conversation_intents,
-#             intents.system_response_remove_from_compare : [(intents.compare_products, 0.7)] + ecomm_in_conversation_intents,
-#             # from user states
-
-#             intents.started_conversation : [(intents.start, 1.0)],
-            
-            
-#             intents.suggest_product: [(intents.show_suggestions, 1.0)],
-#             intents.user_preference : [(intents.refine_query,1.0)],
-#             intents.show_attributes: [(intents.shown_attributes, 1.0)],
-#             intents.generic_product_query:[(intents.clarifying_questions, 1.0 )],  
-            
-#             intents.search_product:[(intents.show_results, 1.0 )],  # slots : product type , attribute list  - e.g color, specifications 
-            
-#             intents.add_to_cart: [(intents.system_response_added_to_cart, 1.0)],   # slots: product id
-#             intents.show_cart : [(intents.shown_cart, 1.0)] ,
-#             intents.bought_cart : [(intents.stop, 0.9), (intents.suggest_product, 0.1)],
-
-#             intents.remove_from_cart: [(intents.system_response_cart_removal, 1.0)],  # slots: product id
-            
-#             intents.buy_cart: [(intents.bought_cart, 1.0)],   
-
-#             intents.compare_products: [(intents.show_comparison, 1.0)],   # slots : products list of ids 
-            
-
-# #############################################################################################################
-
-#             intents.delivery_address: ecomm_in_conversation_intents, # slots: address [city state pin code] # can't we treat this as an attribute?
-            
-            
-            
-#             intents.product_qa: [(intents.select_i, 0.7)] + ecomm_in_conversation_intents, # slots : product id and question 
-            
-            
-#             intents.add_for_compare : [(intents.system_response_add_for_compare, 1.0)] ,   # slots: product id
-            
-#             intents.remove_from_compare : [(intents.system_response_remove_from_compare, 1.0)],  # slots: product id
-            
-# #############################################################################################################
-     
-
-#             intents.refine_query: [(intents.show_results, 1.0)],
-#             intents.more_results: [(intents.show_results, 1.0)],
-
-            
-#             intents.acknowledge: [(intents.in_conversation_system_response, 1.0)],  # ? 
-
-#             intents.open_domain_qa: [(intents.system_response, 1.0)],
-            
-#             intents.select_i: [(intents.option_selected, 1.0)],   # ? 
-
-            
-            
-            
-#             intents.repeat: [(intents.system_response, 1.0)],
-#             intents.deny: [(intents.system_response, 1.0)],
-            
-#             intents.chitchat: [(intents.system_response, 1.0)],
-            
-#             intents.dangerous_product: [(intents.system_response, 1.0)],
-            
-#             intents.subjective_qa: [(intents.system_response, 1.0)]
-#         }
 
 
 
@@ -310,5 +173,7 @@ recipe_graph = {
 
 
 
-# visualizeGraph(recipe_graph)
-# visualizeGraph(graph_ecomm)
+# skeleton = AltTaskPathGenerator()
+
+visualizeGraph(recipe_graph)
+# visualizeGraph(skeleton.graph)

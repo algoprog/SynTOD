@@ -76,7 +76,7 @@ description: {}
 Generate a concise system response and provide options for the user, such as viewing the product's attributes, adding it to the cart, purchasing it, or adding it for comparison. 
 Refer to the product title by using maximum three to four unique words, do not take it's entire name if its too long.
 Avoid enumeration and let it look more human like.
-Please provide only the text of the response.""",
+STRICTLY provide only the text of the response nothing else.""",
     
     "json_format": None
 }
@@ -387,13 +387,14 @@ BUY_CART_PROMPT = {
     "json_format": None
 }
 
+# Response should not be very short like: add to cart. 
+# Avoid repeating product name many times
+
 ADD_TO_CART_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
     Write a response to ask the bot to add this product to the shopping cart. 
-    Response should not be very short like: add to cart. 
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
-    Avoid repeating product name many times
-    
+    Remember you are a human user so you should order like add this to cart and not like I will add it to cart.
     Examples: Add x to the cart, Put it in the cart.\nBot: {}
     
     
@@ -408,12 +409,11 @@ ADD_TO_CART_PROMPT = {
 REMOVE_FROM_CART_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {} which is in your shopping cart. 
     Write a response to ask the bot to remove this product from the shopping cart. 
-    Response should not be very short like: remove. 
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
 
     Examples: Take x out from the cart, remove x .\nBot: {}
     
-    Avoid repeating product name many times
+    Remember you are a human user so prompt should not say something like I will remove but should say can you remove.
 
     Use following format in the response:
 
@@ -428,13 +428,9 @@ ADD_TO_CART_REFERENTIAL_PROMPT = {
     Write a response to ask the bot to add this product to the shopping cart. 
     Do not directly state the name of this product while asking to add to cart, 
     you can use contextual cues or references like : add second one to the cart
-    Response should not be very short like: add to cart. 
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
-
-    Avoid repeating product name many times in a single prompt
-
+    Remember you are a human user so you should order like add this to cart and not like I will add it to cart.
     Examples: Add second option to the cart, Add last one to the cart, Include it in cart, Add it to cart.\nBot: {}
-    
     
     Use following format in the response:
 
@@ -449,11 +445,9 @@ REMOVE_FROM_CART_REFERENTIAL_PROMPT = {
     Write a response to ask the bot to remove this product from the shopping cart. 
     Do not directly state the name of this product while asking to remove from the cart, 
     you can use contextual cues or references like : remove second one from the cart
-    Response should not be very short like: remove 
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
-    Avoid repeating product name many times in a single prompt
     Examples: Take last one from the cart, remove second, remove it .\nBot: {}
-    
+    Remember you are a human user so prompt should not say something like I will remove but should say you can remove.
     
     Use following format in the response:
 
@@ -492,9 +486,8 @@ List of products is the list of title of products for comparison:
 ADD_FOR_COMPARE_PROMPT = {
     "prompt": """You are a human user talking to a bot that helps with selling products on an ecommerce platform. You are already talking to it for some time and currently discussing about a product {}. 
     Craft a response requesting the bot to include this product in the comparison list.
-    Response should not be very short like compare or add compare. 
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
-    Avoid repeating product name many times in a single prompt
+    Remember you are a human user so you should order like add this for compare and not like I will add it for compare.
     Some Examples: Add x to the compare list, Put x for comparison.
     No quotes or enumeration.\nBot: {}
     
@@ -512,8 +505,8 @@ REMOVE_FROM_COMPARE_PROMPT = {
     
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
     For referencing product use maximum of three to four words.
+    Remember you are a human user so prompt should not say something like I will remove from compare but should say like you can remove from compare.
     Expected Examples: Do not use x for comparison, remove x\n
-    Avoid repeating product name many times in a single prompt
     Bot: {},
     
     Use following format in the response:
@@ -532,7 +525,7 @@ ADD_FOR_COMPARE_REFERENTIAL_PROMPT = {
     Response should not be very short like: add for compare. 
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
     Do not repeating product name and description many times in a single prompt.
-    
+    Remember you are a human user so you should order like add this for compare and not like I will add it for compare.
     Examples: Add second option to compare, Add last one for comparing. Add it for comapring\nBot: {}
     
     
@@ -549,7 +542,7 @@ REMOVE_FROM_COMPARE_REFERENTIAL_PROMPT = {
     Write a response to ask the bot to remove this product from the compare list.
     Do not directly state the name of this product while asking to remove from the compare list, 
     you can use contextual cues or references like : remove second one from the comparison
-    Response should not be very short like: remove 
+    Remember you are a human user so prompt should not say something like I will remove from compare but should say like you can remove from compare.
     If the product's name is lengthy, utilize distinct and recognizable words from its name for reference, in such a case choose product name length such that it fits the flow of conversation.
     Avoid repeating product name or description many times in a single prompt.
     Examples: Take last one from the compare, remove second, remove it from compare .\nBot: {}

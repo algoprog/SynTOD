@@ -21,7 +21,7 @@ from constants import *
 openai.api_key = openai_key
 lock = threading.Lock()
 gpt_resp_lock = threading.Lock()
-# inventory_file = "data/final_product_catalog_v0.jsonl"
+
 pos_lock = threading.Lock()
 
 # gpt4 = GPT4_Free_API()
@@ -33,6 +33,11 @@ def write_error(error):
     with lock:
         with open('errors.jsonl', 'a') as file:
             file.write(json.dumps({"error": error}) + "\n")
+            file.flush()
+def write_error_product_id(product_id):
+    with lock:
+        with open('errors_product_id.jsonl', 'a') as file:
+            file.write(json.dumps({"id": product_id}) + "\n")
             file.flush()
 def write_gpt_resp(prompt,response):
     with gpt_resp_lock:
@@ -311,17 +316,24 @@ class DataGenerator:
     def recognize_transition(self, path, path_pos, current_intent ) :
         transition = False
         lookout_intents = [intents.show_results, intents.show_comparison, intents.shown_cart]
+
+
         if path_pos -1 >=0 :
             # current_intent = path[path_pos -1]
             i = path_pos -2
             while( i >=0 and path[i] not in lookout_intents) :
                 i -=1
+            if path[path_pos -1] in [intents.show_comparison, intents.shown_attributes] and current_intent == intents.add_to_cart :
+                transition = True
+            elif path[path_pos -1] in [intents.shown_cart, intents.shown_attributes] and current_intent == intents.add_for_compare :
+                transition = True
         
-        if i > 0 and path[i] != intents.show_results:
+        if i > 0 and path[i] != intents.show_results and not transition:
             if path[i] == intents.show_comparison and current_intent == intents.add_to_cart :
                 transition = True
             elif path[i] == intents.shown_cart and current_intent == intents.add_for_compare :
                 transition = True
+            
 
         return transition
     
@@ -346,7 +358,7 @@ class DataGenerator:
         model = gpt_4_turbo
         multi_output = False
         golden_result_position = args['golden_result_position']
-        search_results = None
+        search_results = args['results']
         suggestions = None
         returned_intent = intent
         prompt = None
@@ -442,7 +454,7 @@ class DataGenerator:
             search_results = args['results']
             results = [f"id: {i+1}, {self.product_to_string(d, shortest=True, append =['rating'])}" for i, d in enumerate(args['results'])]
             results = '\n'.join(results)
-            prompt = SELECT_I_PROMPT['prompt'].format(args['golden_result_position']+1, results)
+            prompt = SELECT_I_PROMPT['prompt'].format(args['golden_result_position']+1, results, args['bot'])
             json_format = SELECT_I_PROMPT['json_format']
             multi_output = True
             temperature = 0.5
@@ -509,13 +521,13 @@ class DataGenerator:
             prdt = other_product
             if prdt == None :
                 prdt = self.get_correct_product(path, path_i, aux_compare,compare_i, aux_cart, cart_i )
+                
             product_info = self.product_to_string(prdt)
-            prompt = SHOW_ATTRIBUTES_BEGIN_PROMPT['prompt'].format(product_info)
+            prompt = SHOW_ATTRIBUTES_BEGIN_PROMPT['prompt'].format(product_info, args['last_shown_options_string'])
             json_format = SHOW_ATTRIBUTES_BEGIN_PROMPT['json_format']
-            # multi_output = True
             temperature = 0.5
             maximum_token_length = 256
-        
+            
         elif intent == intents.acknowledge:
             # model = gpt_4
             prdt = other_product
@@ -685,7 +697,10 @@ class DataGenerator:
         elif intent == intents.add_to_cart:
             if other_product!=None and self.recognize_transition(path, path_pos, intent) : # and other_product != aux_cart[cart_i] 
                 # this is to ensure if element from compare is added here if required
-                aux_cart.insert(cart_i, other_product)
+                if other_product in aux_cart :
+                    cart_i = aux_cart.index(other_product)
+                else :
+                    aux_cart.insert(cart_i, other_product)
             
             prdt = aux_cart[cart_i]
             product_info_oth = self.product_to_string(prdt)
@@ -716,7 +731,10 @@ class DataGenerator:
             #### some major issue here
             if other_product!=None and  self.recognize_transition(path, path_pos, intent) : # other_product != aux_compare[compare_i] and
                 # this is to ensure if element from cart is added here if required
-                aux_compare.insert(compare_i, other_product)
+                if other_product in aux_compare :
+                    compare_i = aux_compare.index(other_product)
+                else :
+                    aux_compare.insert(compare_i, other_product)
             
             prdt = aux_compare[compare_i]
             product_info_oth = self.product_to_string(prdt)
@@ -874,7 +892,7 @@ class DataGenerator:
             response = random.choice(options)
         
         last_shown_options_string = args['last_shown_options_string']
-        if intent in [intents.option_selected]:
+        if intent in [intents.option_selected, intents.select_i_remove_from_cart, intents.select_i_remove_from_compare]:
             search_results = args['results']
             results = [f"id: {i+1}, {self.product_to_string(d, shortest=True, append =['rating'])}" for i, d in enumerate(args['results'])]
             results = '\n'.join(results)
@@ -967,61 +985,7 @@ class DataGenerator:
     
         path_generator = TaskPathGenerator(graph = skeleton.graph)
         path = path_generator.generate_path(max_length=max_length)
-
-
-        # path = ['start', 'search_product', 'show_results', 'more_results', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'suggest_product', 'show_results', 'select_i', 'option_selected', 'product_qa', 'product_qa_system_response', 'add_for_compare', 'system_response_add_for_compare', 'compare_products', 'show_comparison', 'select_i_remove_from_compare', 'system_response_remove_from_compare', 'search_product', 'show_results', 'select_i', 'option_selected', 'add_to_cart', 'system_response_added_to_cart', 'stop']
-        # print(f"path: {path}")
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
-        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
-        #         "product_qa", "product_qa_system_response", "acknowledge", "in_conversation_system_response", "refine_query", "show_results", "select_i", "option_selected", "delivery_address", "delivery_check", "select_i", "option_selected", "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", "search_product", "stop"]
         
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
-        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare", "compare_products", 
-        #         "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", 
-        #         "search_product", "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", 
-        #          intents.select_i, intents.option_selected, 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
-        #         "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare", "compare_products", 
-        #         "show_comparison",
-        #          intents.select_i, intents.option_selected, 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-
-        # # path for testing conversation flow
-        # path = ["start", "suggest_product", "show_results", "select_i", "option_selected", intents.add_to_cart, 
-        #         intents.system_response_added_to_cart, intents.suggest_product, "show_results", "select_i", 
-        #         "option_selected", 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-        #         intents.shown_cart,
-        #          intents.select_i_remove_from_cart,intents.system_response_cart_removal, intents.suggest_product, 
-        #          "show_results", "select_i", "option_selected", 
-        #         intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-        #         intents.shown_cart,
-        #         intents.select_i, intents.option_selected, intents.add_for_compare, 
-        #         intents.system_response_add_for_compare, 
-        #         intents.search_product, "show_results", "select_i", "option_selected", 
-        #         "add_for_compare", "system_response_add_for_compare",
-        #         intents.compare_products, intents.show_comparison, intents.show_cart, intents.shown_cart , 
-        #         intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-        # for open_domain_qa , clarification 2 rounds,1 product qa, add to cart, show_cart , buy cart 
-        # path = ["start", intents.chitchat, intents.system_response, intents.open_domain_qa, intents.system_response , 
-        #          intents.generic_product_query, 
-        #          intents.clarifying_questions, intents.user_clarifies, intents.clarifying_questions, 
-        #          intents.user_clarifies, intents.show_results,
-        #          intents.select_i, intents.option_selected, intents.product_qa, intents.product_qa_system_response,
-        #          intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
-        #          intents.shown_cart,
-        #          intents.buy_cart, intents.bought_cart,
-        #           "stop"]
-        
-        # path = path_generator.get_path_from_file(pos, 'generated_paths.csv') 
         path_length = len(path)
         total_add_to_cart, total_add_for_compare = self.get_path_stats(path)
 
@@ -1177,19 +1141,6 @@ class DataGenerator:
                 response['prompt'] = prompt
 
                 if intent == intents.show_results :
-                    # Comment this part out if this doesn't work
-                    # try : 
-                    #     relevant_search_results = []
-                    #     if product_ids != None :
-                    #         for prdt_id in product_ids :
-                    #             relevant_search_results.append(search_results[prdt_id - 1 ])
-                    #         for prdt in relevant_search_results :
-                    #             search_results.remove(prdt)
-                    #     relevant_search_results += search_results
-                    #     search_results = relevant_search_results
-                    # except : 
-                    #     problem_with_product_ids += 1 
-                    
                     response['results'] = [r['id'] for r in search_results]
 
                     response['results_str'] = '\n'.join([f"id: {j+1}, {self.product_to_string(d,shortest=True)}" for j, d in enumerate(search_results)])
@@ -1218,6 +1169,7 @@ class DataGenerator:
             return conversation, total_used_tokens, product['id'], path, aux_cart, aux_compare
         except :
             print(f"Found error in a conversation with product id : {product['id']}")
+            write_error_product_id(product['id'])
             return conversation, total_used_tokens, product['id'], path, aux_cart, aux_compare
     
     def format_product(self, d):
@@ -1260,33 +1212,34 @@ class DataGenerator:
 
     def generate_conversations(self, limit=10):
         added_ids = set()
-        # older_files = ["data/conversations.jsonl", "data/conversations2.jsonl", "data/conversations4.jsonl", 
-        #                "data/conversations5.jsonl", "data/conversations6.jsonl", "data/conversations_final_1.jsonl",
-        #                "data/conversations_final.jsonl", 'data/conversations_final_r.jsonl', 'data/conversations_final_r_1.jsonl']
-        older_files = ['data/conversations_final_r_2.jsonl']
-        
+        older_files = ['data/final_ecom_conversation.jsonl']
         added_ids = self.add_ids(older_files, added_ids)
+        # remove_ids = set()
+        # remove_ids = self.add_ids(['errors_product_id.jsonl'], remove_ids)
+        # added_ids
         products = []
+        products_for_sampling = []
         with open(inventory_file, 'r') as file:
             for line in file:
                 d = json.loads(line)
-                d = self.add_locations(d)
-                if d['id'] not in added_ids:
+                # d = self.add_locations(d)
+                products_for_sampling.append(d)
+                if d['id'] not in added_ids : # or d['id'] in remove_ids
                     prdt = self.format_product(d)
                     products.append(prdt)
 
-        o = open('data/conversations_final_r_2.jsonl', 'a')
+        o = open('data/65_ecom_conversations.jsonl', 'a')
         total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         completed = 0
-        
         with ThreadPoolExecutor(max_workers=20) as executor:
             futures = []
-            # selected_paths_pos = [21,39,2,3,5,6,8,10,18]
-            # pos = 0
+            
             for prod in products[:limit]:
                 with pos_lock :
-                    futures.append(executor.submit(self.generate_conversation, prod, products)) # , selected_paths_pos[pos] 
-                    # pos +=1
+                    # futures.append(executor.submit(self.generate_conversation, prod, products)) 
+                    futures.append(executor.submit(self.generate_conversation, prod, products_for_sampling)) 
+                    
+                    
             for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures)):
                 conversation, used_tokens, product_id, path, aux_cart, aux_compare = future.result()
                 with lock:
@@ -1298,14 +1251,14 @@ class DataGenerator:
                 completed += 1
         
         print(total_used_tokens)
-        estimated_cost = (total_used_tokens[gpt_4_turbo]/2*0.001/1000 + total_used_tokens[gpt_4_turbo]/2*0.003/1000) + \
+        estimated_cost = (total_used_tokens[gpt_4_turbo]/2*0.01/1000 + total_used_tokens[gpt_4_turbo]/2*0.03/1000) + \
             (total_used_tokens[gpt_4]/2*0.03/1000 + total_used_tokens[gpt_4]/2*0.06/1000)
         print("Estimated cost: ${:.2f}".format(estimated_cost))
 
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=40)
+    generator.generate_conversations(limit=65)
     # 0.26 3
     # 0.37 3
     '''
@@ -1317,4 +1270,41 @@ if __name__ == '__main__':
     40 :  {'gpt-4-1106-preview': 436949, 'gpt-4': 55665}
             Estimated cost: $3.38
 Total = 2.74 + 2.37 + 3.38  = 8.49
+    '''
+
+
+    '''
+    
+    paths = [["start", "suggest_product", "show_results", "select_i", "option_selected", "product_qa", "product_qa_system_response", "add_to_cart", "system_response_added_to_cart", "show_cart", "shown_cart", "select_i_remove_from_cart", "system_response_cart_removal", "acknowledge", "in_conversation_system_response", "show_attributes", "shown_attributes", "add_to_cart", "system_response_added_to_cart", "buy_cart", "bought_cart", "stop"]
+
+        ,["start", "suggest_product", "show_results", "select_i", "option_selected", "add_to_cart", "system_response_added_to_cart", "acknowledge", "in_conversation_system_response", "more_results", "show_results", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", "system_response_add_for_compare", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", "add_to_cart", "system_response_added_to_cart", "buy_cart", "bought_cart", "stop"]
+
+        , ["start", "suggest_product", "show_results", "select_i", "option_selected", intents.add_to_cart, 
+                intents.system_response_added_to_cart, intents.suggest_product, "show_results", "select_i", 
+                "option_selected", 
+                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
+                intents.shown_cart,
+                 intents.select_i_remove_from_cart,intents.system_response_cart_removal, intents.suggest_product, 
+                 "show_results", "select_i", "option_selected", 
+                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, 
+                intents.shown_cart,
+                intents.select_i, intents.option_selected, intents.add_for_compare, 
+                intents.system_response_add_for_compare, 
+                intents.search_product, "show_results", "select_i", "option_selected", 
+                "add_for_compare", "system_response_add_for_compare",
+                intents.compare_products, intents.show_comparison, intents.show_cart, intents.shown_cart , 
+                intents.buy_cart, intents.bought_cart,
+                  "stop"]
+
+        , ["start", "suggest_product", "show_results", "select_i", "option_selected", "add_for_compare", 
+                "system_response_add_for_compare", "search_product", "show_results", "select_i", "option_selected", 
+                "add_for_compare", "system_response_add_for_compare", "compare_products", 
+                "show_comparison", "select_i_remove_from_compare", "system_response_remove_from_compare", 
+                "search_product", "show_results", "select_i", "option_selected", 
+                "add_for_compare", "system_response_add_for_compare", "compare_products", "show_comparison", 
+                 intents.select_i, intents.option_selected, 
+                intents.add_to_cart, intents.system_response_added_to_cart, intents.show_cart, intents.shown_cart, intents.buy_cart, intents.bought_cart,
+                  "stop"]]
+
+    
     '''

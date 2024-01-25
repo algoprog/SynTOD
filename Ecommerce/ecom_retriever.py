@@ -130,7 +130,7 @@ class Retriever:
     def __init__(self):
         self.documents = []
         titles = []
-        with open(inventory_file, 'r') as f:
+        with open(inventory_file_4k, 'r') as f:
             for line in f:
                 d = json.loads(line)
                 self.documents.append(d)
@@ -156,6 +156,7 @@ class Retriever:
 
 if __name__ == "__main__":
     retriever = Retriever()
-    r = retriever.search("Sugar free bubblegum", limit=3)
+    # r = retriever.search("Sugar free bubblegum", limit=3)
+    r = retriever.search('luxurious scented candles floral gardenia tuberose high rating', limit = 20)
     print(r[0])
 

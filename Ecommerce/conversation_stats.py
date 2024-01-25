@@ -1,9 +1,8 @@
 import json
 from constants import *
+import matplotlib.pyplot as plt
 
-# conversations_file = inventory_file # "data/conversations_final.jsonl"
-
-
+# conversations_file = inventory_file # "data/conversations_final.jsonl" 
 
 def print_dict(dict) :
     s = 0
@@ -23,7 +22,51 @@ def read_jsonl(file_path):
     return data
 
 
-extracted_file =  "./data/extracted_conversations_final_r_2.jsonl"
+extracted_file =  "./data/extracted_final_ecom_conversations.jsonl" # final_ecom_conversation extracted_conversations_final_r_2
+
+def build_histogram(data, inv_file = extracted_file) :
+
+    # data = get_inventory_stats(inv_file=inv_file)
+
+    keys = list(data.keys())
+    values = list(data.values())
+
+    plt.figure(figsize=(15, 8))  # Adjust the figure size as needed
+    plt.bar(keys, values)
+    plt.xlabel('Categories')
+    plt.ylabel('Frequency')
+    plt.title(f'Histogram {inv_file.split(".")[0]}')
+
+    plt.xticks(rotation=90)  # Rotate x-axis labels for better readability
+    plt.tight_layout()
+
+    plt.show()   
+    plt.savefig(f"{inv_file.split('.')[0]}_intents_statistics.png")    
+
+def plot_states_frequency(string_counts):
+    
+    strings = list(string_counts.keys())
+    frequencies = list(string_counts.values())
+
+    sorted_indices = sorted(range(len(frequencies)), key=lambda i: frequencies[i], reverse=True)
+    sorted_strings = [strings[i] for i in sorted_indices]
+    sorted_frequencies = [frequencies[i] for i in sorted_indices]
+    sum_freq = sum(sorted_frequencies)
+    max_freq = max(sorted_frequencies)
+    sorted_frequencies = [ freq/max_freq for freq in sorted_frequencies]
+
+    plt.figure(figsize=(20, 10))
+    plt.bar(sorted_strings, sorted_frequencies)
+    plt.xlabel('Intents')
+    plt.ylabel('Frequency')
+    plt.title('Frequency of intents')
+    plt.xticks(rotation='vertical')
+    plt.subplots_adjust(bottom=0.25)
+    plt.show()
+    plt.savefig(f"plot_intents_frequency_training_conversations_ecom.png")
+
+
+
 data = read_jsonl(extracted_file)
 
 selected_results_stats = {
@@ -52,6 +95,7 @@ intents_counts = {
     intents.open_domain_qa : 0 , 
     intents.user_clarifies : 0 ,
 }
+all_intents = {}
 
 utterence_lengths = []
 tokens = []
@@ -76,9 +120,16 @@ for path in data :
         gpt_4_tok += utterence['gpt-4']
 
         if intent == intents.show_results :
-            selected_results_stats[len(utterence['product_ids'])] +=1
+            if len(utterence['product_ids']) in selected_results_stats :
+                selected_results_stats[len(utterence['product_ids'])] +=1
+            else :
+                selected_results_stats[len(utterence['product_ids'])] = 1
         if intent in intents_counts :
             intents_counts[intent] +=1
+        if intent in all_intents :
+            all_intents[intent] += 1
+        else :
+            all_intents[intent] = 1
     
 
     tokens.append(total_tokens)
@@ -87,12 +138,13 @@ for path in data :
 
 print(selected_results_stats)
 print(sum(utterence_lengths)/len(data))
-print(tokens)
-print(gpt_4tokens)
-print(json_failure_intents)
-s = print_dict(json_failure_intents)
+# print(tokens)
+# print(gpt_4tokens)
+# print(json_failure_intents)
+# s = print_dict(json_failure_intents)
 print(sum(utterence_lengths))
-print(f"total : {s}")
+# print(f"total : {s}")
 
-print(intents_counts)
+# print(intents_counts)
 
+plot_states_frequency(all_intents)

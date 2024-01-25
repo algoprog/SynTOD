@@ -1,8 +1,9 @@
 import json
+from constants import *
 
 
 
-valid_product_catalog = "./data/valid_product_catalog.jsonl"
+valid_product_catalog =  inventory_file_4k #"./data/valid_product_catalog.jsonl"
 
 product_catalog = "./data/product_catalog_v0.jsonl"
 
@@ -30,5 +31,5 @@ valid_stat = get_catalog_stats(valid_product_catalog)
 stat = get_catalog_stats(product_catalog)
 
 print(f"valid_stat : {valid_stat}")
-print(f"prdt stat: {stat}")
+# print(f"prdt stat: {stat}")
 

@@ -10,11 +10,26 @@ attributes = 'attributes'
 title = 'title'
 rating = 'overall'
 ratingCount = 'vote'
-inventory_file = 'data/final_product_catalog_v0.jsonl'
+inventory_with_locations_file = 'data/final_product_catalog_added_locations_v0.jsonl'
+inventory_file_original_with_description = "data/4k_final_valid_product_catalog.jsonl" #'data/final_valid_product_catalog_v0_with_description.jsonl'
+
+# inventory_file = 'data/final_valid_product_catalog.jsonl'
+# inventory_with_locations_file = 'data/final_valid_product_catalog_added_locations_v0.jsonl'
+inventory_file_extra = 'data/final_valid_product_catalog_extra.jsonl'
+
+combined_inventory_file = 'data/combined_valid_product_catalog.jsonl'
+
+inventory_file_4k = "data/4k_final_valid_product_catalog.jsonl" # 'data/4k_valid_product_catalog.jsonl'
+inventory_file_train = 'data/4k_valid_product_catalog_train.jsonl'
+inventory_file_test = 'data/4k_valid_product_catalog_test.jsonl'
+inventory_100_file_test = 'data/4k_valid_100_product_catalog_test.jsonl'
+
 locations = [ "United States", "United Kingdom", "South Africa", "Australia", "India", "Thailand", "Greece", "Bangladesh", "China", "Canada", "Mexico", "France", "Germany", "Japan", "South Korea"]
 # openai_keys = ['']
 openai_key = ''
 
+inventory_file = inventory_file_test #'data/final_product_catalog_v0.jsonl' # 'data/final_product_catalog_added_locations_v0.jsonl' #
+useapi = 'llama'
 
 class Intents:
     # register all intents here

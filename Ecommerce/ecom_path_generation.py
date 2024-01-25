@@ -47,7 +47,7 @@ class TaskPathGenerator:
         self.graph = graph
     
 
-    def generate_path(self, max_length=40, num_clari=5):
+    def generate_path(self, max_length=40, num_clari=3):
         """
         Generates a path of system-user states
         :param max_length: the maximum length of the path
