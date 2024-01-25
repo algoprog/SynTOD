@@ -11,11 +11,48 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm.auto import tqdm
 from path_generation import TaskPathGenerator
 
-from prompts import *
+from prompts_modified import *
 from retriever import Retriever
 
-openai.api_key = ""
+from openai import OpenAI
+
+import google.generativeai as genai
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
+
+
+useapi = 'llama'
+
+openai.api_key = "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"
 lock = threading.Lock()
+
+gpt_4_turbo = 'gpt-4-1106-preview'#'gpt-4-turbo'
+gpt_4 = 'gpt-4'
+
+
+GOOGLE_API_KEY = ''
+# keys from Chris
+MISTRAL_KEY = ''
+# key from Chris  
+LLAMA_KEY = ''
+
+
+gpt_client = OpenAI(
+    # This is the default and can be omitted
+    api_key="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",
+)
+
+gemini_api_key = GOOGLE_API_KEY
+genai.configure(api_key = gemini_api_key)
+
+model_gemini = genai.GenerativeModel('gemini-pro')
+# useapi = 'llama' # 'mistral' #'llama' # gpt_4_turbo  # 'llama'
+
+# Create an OpenAI client with your deepinfra token and endpoint
+openai_client = OpenAI(
+    api_key=LLAMA_KEY,
+    base_url="https://api.deepinfra.com/v1/openai",
+)
 
 def write_error(error):
     with lock:
@@ -29,22 +66,114 @@ def md5_hash(string):
     return md5.hexdigest()
 
 
-def chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=64):
+def gemini_api(prompt, model='gemini_pro', temperature=0.5, max_retries=64, max_tokens = 2000) :
+    for i in range(max_retries) :
+        response = model_gemini.generate_content(
+                                prompt,
+                                generation_config=genai.types.GenerationConfig(
+                                    candidate_count=1,
+                                    # stop_sequences=['space'],
+                                    max_output_tokens=max_tokens,
+                                    temperature=temperature/2.0)
+                                )
+        if response != None:
+            return response.text, 0
+
+    return None, 0
+
+
+
+def llama_api(prompt, model="meta-llama/Llama-2-70b-chat-hf", temperature=0.5, max_retries=64, max_tokens = 2000):
+    for i in range(max_retries) :
+        try :
+            
+            response = openai_client.chat.completions.create(
+                    model="meta-llama/Llama-2-70b-chat-hf",
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    timeout=40.0,
+                    messages=[{'role': 'user', 'content': prompt}]
+                    )
+            # print(response.choices[0].message.content)
+            # # write_gpt_resp(prompt,response)
+            # print(f"response: {response}")
+            used_tokens = response.usage.total_tokens
+            return response.choices[0].message.content, used_tokens
+
+            
+        except Exception as e:
+            print(f"Error occurred: {e}. Retrying in {20} seconds...")
+            if e.status_code == 400 :
+                prompt = prompt + ". Keep response SHORT"
+            time.sleep(2)
+
+    return None, 0 
+
+
+def mistral_api(prompt, model="mistral-tiny", temperature=0.5, max_retries=64, max_tokens = 2000):
+    
+    model = "mistral-medium" # tiny small medium
+
+    for i in range(max_retries):
+        api_key = MISTRAL_KEY
+        
+        client = MistralClient(api_key=api_key)
+
+        messages = [
+            ChatMessage(role="user", content=prompt)
+        ]
+        try:
+            
+            # No streaming
+            response = client.chat(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                
+            )
+            used_tokens = response.usage.total_tokens
+            return response.choices[0].message.content.strip(), used_tokens
+        except Exception as e:
+            print(f"Error occurred: {e}. Retrying in {20} seconds...")
+            time.sleep(20)
+    return None, 0
+
+
+def chatgpt_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_tokens = 2000):
+
     for i in range(max_retries):
         try:
-            response = openai.ChatCompletion.create(
+            response = gpt_client.chat.completions.create(
                 model=model,
-                max_tokens=2000,
+                max_tokens=max_tokens,
                 temperature=temperature,
-                request_timeout=40,
+                timeout=40,
                 messages=[{'role': 'user', 'content': prompt}]
             )
-            used_tokens = response["usage"]["total_tokens"]
-            return response["choices"][0]["message"]["content"].strip(), used_tokens
+            # write_gpt_resp(prompt,response)
+            used_tokens = response.usage.total_tokens
+            return response.choices[0].message.content.strip(), used_tokens
         except Exception as e:
             print(f"Error occurred: {e}. Retrying in {2} seconds...")
             time.sleep(2)
     return None, 0
+
+
+def llm_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_tokens = 2000, api = useapi) :
+    if api == "gemini" :
+        model = 'gemini_pro'
+        return gemini_api(prompt,model, temperature, max_retries, max_tokens)
+    elif api == gpt_4_turbo or api == gpt_4 :
+        return chatgpt_api(prompt, model=model, temperature=temperature, max_retries=7,max_tokens = max_tokens)
+    elif api == 'llama' :
+        return llama_api(prompt, model="meta-llama/Llama-2-70b-chat-hf", temperature=temperature, max_retries=7,max_tokens = max_tokens)
+    elif api == "mistral" :
+        return mistral_api(prompt, model=model, temperature=temperature, max_retries=7,max_tokens = max_tokens)
+    
+    
+    return None, 0
+    
 
 
 def generate_conversation(task_name):
@@ -135,12 +264,18 @@ class DataGenerator:
 
     def task_to_string(self, task, current_step=None):
         steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(task['steps'])])
-        return f"title: {task['title']}, description: {task['description']}, minutes: {task['minutes']}, rating: {task['rating']} ({task['ratingCount']}), ingredients: [{', '.join(task['ingredients'])}], current step: {current_step}, steps: [{steps_str}]"
+        return f"title: {task['title']}, description: {task['description']}, minutes: {task['minutes']}, rating: {task['rating']} ({task['ratingCount']}), ingredients: [{self.get_dict_to_str_joined(task['ingredients'])}], current step: {current_step}, steps: [{steps_str}]"
+
+    def get_dict_to_str_joined(self, dictionaries, delim = ", ") :
+        sts  = []
+        for d in dictionaries :
+            sts.append(str(d))
+        return delim.join(sts)
 
     def generate_response(self, intent, next_intent=None, prev_intent=None, args=None):
         #print("\nintent:", intent)
 
-        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
+        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0, useapi : 0}
         temperature = 1.0
         json_format = None
         model = 'gpt-3.5-turbo'
@@ -164,7 +299,8 @@ class DataGenerator:
             json_format = SEARCH_RECIPE_PROMPT['json_format']
             model = 'gpt-4'
         elif intent == 'suggest_recipe':
-            recipe = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}]"
+            # recipe = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}]"
+            recipe = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{self.get_dict_to_str_joined(args['recipe']['ingredients'])}]" # , ingredients: [{self.get_dict_to_str_joined(args['recipe']['ingredients'])}]
             prompt = SUGGEST_RECIPE_PROMPT['prompt'].format(recipe)
             json_format = SUGGEST_RECIPE_PROMPT['json_format']
             model = 'gpt-4'
@@ -173,7 +309,10 @@ class DataGenerator:
             temperature = 0.0
             recipe_id = args['recipe']['id']
             # retrieve 20 results, remove the current recipe id doc, and get the next 2-3 results
-            results = self.retriever.search(args['query'], limit=20)
+            ress = self.retriever.search(args['query'], limit=20)
+            results = []
+            for res in ress :
+                results.append((self.remove_urls(res[0]),res[1]))
 
             #print("\nretriever results:", ', '.join([r[0]['title'] for r in results]))
 
@@ -192,7 +331,8 @@ class DataGenerator:
                 returned_intent = 'no_results'
 
             # format the results
-            results = [f"id: {i+1}, {r['title']}, {r['minutes']} minutes, rating: {r['rating']} ({r['ratingCount']}), {r['description']}, ingredients: [{', '.join(r['ingredients'])}]\n" for i, r in enumerate(results)]
+            # results = [f"id: {i+1}, {r['title']}, {r['minutes']} minutes, rating: {r['rating']} ({r['ratingCount']}), {r['description']}, ingredients: [{', '.join(r['ingredients'])}]\n" for i, r in enumerate(results)]
+            results = [f"id: {i+1}, {r['title']}, {r['minutes']} minutes, rating: {r['rating']} ({r['ratingCount']}), {r['description']}, ingredients: [{self.get_dict_to_str_joined(r['ingredients'])}]\n" for i, r in enumerate(results)]
             results = '\n'.join(results)
 
             if prev_intent == 'more_results':
@@ -234,7 +374,8 @@ class DataGenerator:
         elif intent == 'show_step':
             #model = 'gpt-4'
             steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(args['recipe']['steps'])])
-            recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}], steps: [{steps_str}]"
+            # recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}], steps: [{steps_str}]"
+            recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, steps: [{steps_str}] , ingredients: [{self.get_dict_to_str_joined(args['recipe']['ingredients'])}]" # , ingredients: [{self.get_dict_to_str_joined(args['recipe']['ingredients'])}]
             prompt = SHOW_STEP_PROMPT['prompt'].format(recipe_info, args['step'])
             json_format = SHOW_STEP_PROMPT['json_format']
         elif intent == 'acknowledge_step':
@@ -262,11 +403,13 @@ class DataGenerator:
             #model = 'gpt-4'
             topk = 10
             prompt = FIND_SUGGESTIONS_PROMPT['prompt'].format(topk, args['query'])
-            response, used_tokens = chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=7)
+            # response, used_tokens = chatgpt_api(prompt, model='gpt-3.5-turbo', temperature=0.0, max_retries=7)
+            response, used_tokens = llm_api(prompt, model='gpt-3.5-turbo', temperature=temperature, max_retries=7,max_tokens = 2000, api = useapi)
+        
             if response is None:
                 write_error(f'ERROR: {prompt}')
                 return None, total_used_tokens, None, prompt
-            total_used_tokens['gpt-3.5-turbo'] += used_tokens
+            total_used_tokens[useapi] += used_tokens # 'gpt-3.5-turbo'
             ungrounded_suggestions = response.split('\n')
             ungrounded_suggestions = [r for r in ungrounded_suggestions if r != '']
             suggestions = ungrounded_suggestions
@@ -406,14 +549,16 @@ class DataGenerator:
             if prev_intent in ['open_domain_qa', 'in_task_qa', 'show_ingredients']:
                 model = 'gpt-4'
             if prev_intent == 'show_ingredients':
-                prompt = DISPLAY_INGREDIENTS_PROMPT['prompt'].format('\n'.join(args['recipe']['ingredients']))
+                # prompt = DISPLAY_INGREDIENTS_PROMPT['prompt'].format('\n'.join(args['recipe']['ingredients']))
+                prompt = DISPLAY_INGREDIENTS_PROMPT['prompt'].format(self.get_dict_to_str_joined(args['recipe']['ingredients'], delim='\n'))
             elif prev_intent in ['open_domain_qa', 'deny', 'set_timer', 'chitchat', 'offense', 'legal_advice', 
                                'financial_advice', 'medical_advice', 'dangerous_task', 'personal_information', 
                                'suicide_attempt', 'subjective_qa']:
                 prompt = SYSTEM_PROMPT['prompt'].format(args['user'])
             elif prev_intent in ['in_task_qa', 'show_ingredients']:
                 steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(args['recipe']['steps'])])
-                recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}], steps: [{steps_str}]"
+                # recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{', '.join(args['recipe']['ingredients'])}], steps: [{steps_str}]"
+                recipe_info = f"title: {args['recipe']['title']}, description: {args['recipe']['description']}, ingredients: [{self.get_dict_to_str_joined(args['recipe']['ingredients'])}], steps: [{steps_str}]"
                 prompt = IN_TASK_SYSTEM_PROMPT['prompt'].format(args['step'], recipe_info, args['user'])
             elif prev_intent == 'repeat':
                 prompt = SYSTEM_REPEAT_PROMPT['prompt'].format(args['bot'], args['user'])
@@ -423,8 +568,10 @@ class DataGenerator:
         if prompt is None:
             write_error(f'ERROR: {intent}')
 
-        response, used_tokens = chatgpt_api(prompt, model=model, temperature=temperature, max_retries=7)
-        total_used_tokens[model] += used_tokens
+        # response, used_tokens = chatgpt_api(prompt, model=model, temperature=temperature, max_retries=7)
+        response, used_tokens = llm_api(prompt, model=model, temperature=temperature, max_retries=7)
+            
+        total_used_tokens[useapi] += used_tokens
         if response is None:
             write_error(f'ERROR: {prompt}')
             return None, total_used_tokens, None, prompt
@@ -434,7 +581,8 @@ class DataGenerator:
                 response = json.loads(response)
             except:
                 prompt = "fix the json below, expected format is {}, give only the correct json in your response nothing else:\n{}".format(json_format, response)
-                response, used_tokens = chatgpt_api(prompt, model='gpt-4', max_retries=7)
+                # response, used_tokens = chatgpt_api(prompt, model='gpt-4', max_retries=7)
+                response, used_tokens = llm_api(prompt, model='gpt-4', temperature=temperature, max_retries=7, api = gpt_4)
                 total_used_tokens['gpt-4'] += used_tokens
                 if response is None:
                     write_error(f'ERROR: {prompt}')
@@ -554,26 +702,57 @@ class DataGenerator:
                 break
         
         return conversation, total_used_tokens, task['id'], path
+    
+    
+    def remove_urls(self, d) :
+        ingrs = d['ingredients']
+        ings_new = []
+        for ing in ingrs :
+            if "image" in ing:
+                del ing['image']
+            ings_new.append(ing)
+        d['ingredients'] = ings_new
+
+        steps = d['steps']
+        steps_new = []
+        for step in steps :
+            if "image" in step :
+                del step['image']
+            if "video" in step :
+                del step['video']
+            steps_new.append(step)
+        d['steps'] = steps_new
+
+        return d
+
+
 
     def generate_conversations(self, limit=1):
         added_ids = set()
-        with open("data/conversations.jsonl") as f:
+        with open("data/complete_conversations_llama_recipe.jsonl") as f:
+            for line in f:
+                d = json.loads(line.rstrip('\n'))
+                added_ids.add(d['id'])
+        
+        with open("data/complete_conversations_llama_recipe_2.jsonl") as f:
             for line in f:
                 d = json.loads(line.rstrip('\n'))
                 added_ids.add(d['id'])
         
         recipes = []
-        with open('data/corpus_simple.jsonl', 'r') as file:
+        with open('data/recipe_seed_test_set.jsonl', 'r') as file:
             for line in file:
                 d = json.loads(line)
+                d = self.remove_urls(d)
+
                 if d['id'] not in added_ids:
                     recipes.append(d)
 
-        o = open('data/conversations_2.jsonl', 'w+')
-        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0}
+        o = open('data/complete_conversations_llama_recipe_2.jsonl', 'a')
+        total_used_tokens = {'gpt-3.5-turbo': 0, 'gpt-4': 0, useapi: 0}
         completed = 0
         
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             futures = []
             for recipe in recipes[:limit]:
                 futures.append(executor.submit(self.generate_conversation, recipe))
@@ -588,14 +767,19 @@ class DataGenerator:
                 completed += 1
         
         print(total_used_tokens)
-        estimated_cost = (total_used_tokens['gpt-3.5-turbo']/2*0.0015/1000 + total_used_tokens['gpt-3.5-turbo']/2*0.002/1000) + \
-            (total_used_tokens['gpt-4']/2*0.03/1000 + total_used_tokens['gpt-4']/2*0.06/1000)
-        print("Estimated cost: ${:.2f}".format(estimated_cost))
+        # estimated_cost = (total_used_tokens['gpt-3.5-turbo']/2*0.0015/1000 + total_used_tokens['gpt-3.5-turbo']/2*0.002/1000) + \
+        #     (total_used_tokens['gpt-4']/2*0.03/1000 + total_used_tokens['gpt-4']/2*0.06/1000)
+        # print("Estimated cost: ${:.2f}".format(estimated_cost))
+        estimated_cost = (total_used_tokens[useapi]/2*0.9/1000000 + total_used_tokens[useapi]/2*1.8/1000000) + \
+            (total_used_tokens[gpt_4]/2*0.03/1000 + total_used_tokens[gpt_4]/2*0.06/1000)
+        print("Estimated cost: ${:.4f}".format(estimated_cost))
+        estimate_cost_new_llm = (total_used_tokens[useapi]/2*0.7/1000000 + total_used_tokens[useapi]/2*0.9/1000000)
+        print("Estimated cost of only new llm: ${:.4f}".format(estimate_cost_new_llm))
 
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=1)
+    generator.generate_conversations(limit=85)
 
     # r = generator.retriever.search('dumplings', limit=3)
     # r = [d[0]['title'] for d in r]

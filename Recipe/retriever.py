@@ -130,7 +130,7 @@ class Retriever:
     def __init__(self):
         self.documents = []
         titles = []
-        with open('data/corpus_simple_s.jsonl', 'r') as f:
+        with open('data/corpus_recipe.jsonl', 'r') as f:
             for line in f:
                 d = json.loads(line)
                 self.documents.append(d)
@@ -141,9 +141,9 @@ class Retriever:
 
         print("Start Indexing...")
         self.dr = DenseRetriever(self.model, use_gpu=False)
-        #self.dr.create_index_from_documents(titles)
-        self.dr.create_index_from_vectors('data/corpus_vectors.pkl')
-        #self.dr.save_index(vectors_path='data/corpus_vectors.pkl')
+        # self.dr.create_index_from_documents(titles)
+        self.dr.create_index_from_vectors('data/corpus_recipe.pkl')
+        # self.dr.save_index(vectors_path='data/corpus_recipe.pkl')
 
         print("Indexing Complete.")
 
