@@ -14,7 +14,7 @@ from ecom_path_skeleton import UniversalPaths, AltTaskPathGenerator
 
 import google.generativeai as genai
 
-GOOGLE_API_KEY = 'AIzaSyCqwA72HpU3wAASrwvhXUssTYahoBoON6o'
+GOOGLE_API_KEY = ''
 
 from ecom_prompts import *
 from ecom_retriever import Retriever
@@ -31,13 +31,6 @@ pos_lock = threading.Lock()
 
 gpt_4_turbo = 'gpt-4-1106-preview'#'gpt-4-turbo'
 gpt_4 = 'gpt-4'
-
-
-gemini_api_key = GOOGLE_API_KEY
-genai.configure(api_key = gemini_api_key)
-
-
-# response = generate_text(GOOGLE_API_KEY, "us-central1")
 
 model = genai.GenerativeModel('gemini-pro')
 
@@ -247,12 +240,19 @@ class DataGenerator:
 
         return attri
     
-    def truncate_to(self, trstr, max_length = 200) :
-        return " ".join(trstr.split(" ")[:max_length])
-    
     def attri_to_string(self, attributes):
         attri = self.get_attributes(attributes)
+        # final_Str = '['
         
+        # for key in attri.keys():
+        #     t = f"({key} , {attri[key]}), "
+        #     final_Str += t
+        # if final_Str[-2:] == ", " :
+        #     final_Str = final_Str[:-2]
+        
+        # final_Str += ']'
+        # if '[(key , )]' in final_Str :
+        #     final_Str = ''
         return attri
     
     def features_to_string(self, features) :
@@ -261,27 +261,35 @@ class DataGenerator:
         for feat in features :
             t = f"{feat}, "
             final_str += t
-        final_str = self.truncate_to(final_str, max_length=200)
 
         if final_str[-2:] == ", " :
             final_str = final_str[:-2]
-
         final_str += ']'
 
         return final_str
     def details_to_string(self, details) :
         final_str = f'[{details}]'
+
+        # for detail in details.keys() :
+        #     t = f"{detail}, "
+        #     final_str += t
+
+        # if final_str[-2:] == ", " :
+        #     final_str = final_str[:-2]
+        # final_str += ']'
+
         return final_str
 
 
     def product_to_string(self, product, short = False, shortest = False, append = []):
-        
+        # steps_str = ', '.join([f"'{i+1}: {s}'" for i, s in enumerate(task['steps'])])
+        # f_S = f"product_id: {product['id']}, "
         f_S = ""
         if short :
             f_S += f"product_title: {product['title']}"
             try :
                 if 'description' in product.keys() :
-                    f_S += f", description: {self.truncate_to(product['description'][0], max_length=200)}"
+                    f_S += f", description: {product['description'][0]}"
                 else :
                     try :
 
@@ -308,7 +316,7 @@ class DataGenerator:
             f_S += f"product_title: {product['title']}"
 
             if 'description' in product.keys() and len(product['description']) >0 :
-                f_S += f", description: {self.truncate_to(product['description'][0], max_length=200)}"
+                f_S += f", description: {product['description'][0]}"
             
         if short or shortest :
             if "overall" in product and "rating" in append:
@@ -317,7 +325,7 @@ class DataGenerator:
 
         des = ''
         if 'description' in product.keys() and len(product['description']) > 0:
-                des = f", description:  {self.truncate_to(product['description'][0], max_length=200)}"
+                des = f", description:  {product['description'][0]}"
         f_S = f"title: {product['title']}{des}, user rating: {product['overall']}, reviewCount: ({product['reviewCount']}), attributes: {self.attri_to_string(product['attributes'])}"
 
         return f_S
@@ -1246,7 +1254,7 @@ class DataGenerator:
                     prdt = self.format_product(d)
                     products.append(prdt)
 
-        o = open('data/ecom_conversations_test_gemini.jsonl', 'a')
+        o = open('data/ecom_conversations_test.jsonl', 'a')
         total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         completed = 0
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -1276,7 +1284,7 @@ class DataGenerator:
 if __name__ == '__main__':
     generator = DataGenerator()
 
-    generator.generate_conversations(limit=108)
+    generator.generate_conversations(limit=100)
 
 
 

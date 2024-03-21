@@ -30,7 +30,7 @@ def plot_states_frequency(list_of_lists, num_paths):
     sum_freq = sum(sorted_frequencies)
     max_freq = max(sorted_frequencies)
     sorted_frequencies = [ freq/max_freq for freq in sorted_frequencies]
-
+    print(strings)
     plt.figure(figsize=(20, 10))
     plt.bar(sorted_strings, sorted_frequencies)
     plt.xlabel('States')
@@ -39,7 +39,7 @@ def plot_states_frequency(list_of_lists, num_paths):
     plt.xticks(rotation='vertical')
     plt.subplots_adjust(bottom=0.25)
     plt.show()
-    plt.savefig(f"plot_states_frequency_{num_paths}.png")
+    # plt.savefig(f"plot_states_frequency_{num_paths}.png")
 
 
 class TaskPathGenerator:
@@ -237,17 +237,17 @@ if __name__ == '__main__':
              range(num_paths)]
 
     
-    file_name = 'generated_paths_alt.csv'
+    # file_name = 'generated_paths_alt.csv'
 
-    # paths = [ cg.get_path_from_file(pos, file_name) for pos in range(num_paths) ]
+    # # paths = [ cg.get_path_from_file(pos, file_name) for pos in range(num_paths) ]
 
-    # Open the file in write mode and use 'csv.writer' to write the data
-    with open(file_name, 'w', newline='') as file:
-        csv_writer = csv.writer(file)
+    # # Open the file in write mode and use 'csv.writer' to write the data
+    # with open(file_name, 'w', newline='') as file:
+    #     csv_writer = csv.writer(file)
         
-        # Write each row to the CSV file
-        for p in paths:
-            csv_writer.writerow(p)
+    #     # Write each row to the CSV file
+    #     for p in paths:
+    #         csv_writer.writerow(p)
 
     # # plot_states_frequency(paths)
     # selected_paths = [0,2,3,5,6,8,10,18,21,39]

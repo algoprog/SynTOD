@@ -13,14 +13,21 @@ from ecom_path_generation import TaskPathGenerator
 from ecom_path_skeleton import UniversalPaths, AltTaskPathGenerator
 
 import google.generativeai as genai
-
-GOOGLE_API_KEY = 'AIzaSyCqwA72HpU3wAASrwvhXUssTYahoBoON6o'
+from mistralai.client import MistralClient
+from mistralai.models.chat_completion import ChatMessage
 
 from ecom_prompts import *
+# from ecom_prompts_for_gemini import *
 from ecom_retriever import Retriever
 from constants import *
-# from gpt4_free import GPT4_Free_API
+from openai import OpenAI
 
+
+GOOGLE_API_KEY = 'AIzaSyCqwA72HpU3wAASrwvhXUssTYahoBoON6o'
+MISTRAL_KEY = '69Bm2dEEn10ZDK5EKQtgiiEtB8FF2UGN'
+LLAMA_KEY = 'gAbxAVfNYXdFSQxFbR4W4xRJOCVz6UU0'
+
+openai.api_key = openai_key
 
 lock = threading.Lock()
 gpt_resp_lock = threading.Lock()
@@ -32,14 +39,24 @@ pos_lock = threading.Lock()
 gpt_4_turbo = 'gpt-4-1106-preview'#'gpt-4-turbo'
 gpt_4 = 'gpt-4'
 
+gpt_client = OpenAI(
+    # This is the default and can be omitted
+    api_key=openai_key,
+)
 
 gemini_api_key = GOOGLE_API_KEY
 genai.configure(api_key = gemini_api_key)
 
+model_gemini = genai.GenerativeModel('gemini-pro')
+# useapi = 'llama' # 'mistral' #'llama' # gpt_4_turbo  # 'llama'
 
-# response = generate_text(GOOGLE_API_KEY, "us-central1")
+# Create an OpenAI client with your deepinfra token and endpoint
+openai_client = OpenAI(
+    api_key=LLAMA_KEY,
+    base_url="https://api.deepinfra.com/v1/openai",
+)
 
-model = genai.GenerativeModel('gemini-pro')
+
 
 def write_error(error):
     with lock:
@@ -48,12 +65,12 @@ def write_error(error):
             file.flush()
 def write_error_product_id(product_id):
     with lock:
-        with open('errors_product_id.jsonl', 'a') as file:
+        with open('errors_product_id_mistral.jsonl', 'a') as file:
             file.write(json.dumps({"id": product_id}) + "\n")
             file.flush()
 def write_gpt_resp(prompt,response):
     with gpt_resp_lock:
-        with open('gpt_responses.jsonl', 'a') as file:
+        with open(f'{useapi}_responses.jsonl', 'a') as file:
             file.write(json.dumps({"prompt" :prompt, "response": response}) + "\n")
             file.flush()
 def write_gpt_resp_None(prompt,response):
@@ -70,68 +87,125 @@ def md5_hash(string):
 
 def gemini_api(prompt, model='gemini_pro', temperature=0.5, max_retries=64, max_tokens = 2000) :
     for i in range(max_retries) :
-        response = model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
-            candidate_count=1,
-            # stop_sequences=['space'],
-            max_output_tokens=max_tokens,
-            temperature=temperature)
-            )
+        response = model_gemini.generate_content(
+                                prompt,
+                                generation_config=genai.types.GenerationConfig(
+                                    candidate_count=1,
+                                    # stop_sequences=['space'],
+                                    max_output_tokens=max_tokens,
+                                    temperature=temperature)
+                                )
         if response != None:
             return response.text, 0
 
     return None, 0
 
-def llm_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_tokens = 2000, api = useapi) :
-    if api == "gemini" :
-        model = 'gemini_pro'
-        return gemini_api(prompt,model, temperature, max_retries, max_tokens)
-    elif api == 'openai' :
-        return chatgpt_api(prompt, model=model, temperature=temperature, max_retries=7,max_tokens = max_tokens)
-    
-    return None, 0
-    
 
+
+def llama_api(prompt, model="meta-llama/Llama-2-70b-chat-hf", temperature=0.5, max_retries=64, max_tokens = 2000):
+    for i in range(max_retries) :
+        try :
+            
+            response = openai_client.chat.completions.create(
+                    model="meta-llama/Llama-2-70b-chat-hf",
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    timeout=40.0,
+                    messages=[{'role': 'user', 'content': prompt}]
+                    )
+            # print(response.choices[0].message.content)
+            # # write_gpt_resp(prompt,response)
+            # print(f"response: {response}")
+            used_tokens = response.usage.total_tokens
+            return response.choices[0].message.content, used_tokens
+
+            
+        except Exception as e:
+            print(f"Error occurred: {e}. Retrying in {2} seconds...")
+            time.sleep(2)
+
+    return None, 0 
+
+
+def mistral_api(prompt, model="mistral-tiny", temperature=0.5, max_retries=64, max_tokens = 2000):
+    
+    model = "mistral-medium" # tiny small medium
+    # mistralai/Mixtral-8x7B-Instruct-v0.1
+    # 01-ai/Yi-34B-Chat
+    # model = "mistralai/Mistral-7B-Instruct-v0.1"
+    # model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+
+    for i in range(max_retries):
+        api_key = LLAMA_KEY
+        
+        # client = MistralClient(api_key=api_key)
+
+        # messages = [
+        #     ChatMessage(role="user", content=prompt)
+        # ]
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://api.deepinfra.com/v1/openai",
+        )
+
+        
+        try:
+            
+            # No streaming
+            # response = client.chat(
+            #     model=model,
+            #     messages=messages,
+            #     temperature=temperature,
+            #     max_tokens=max_tokens,
+                
+            # )
+            response = client.chat.completions.create(
+                    model="mistralai/Mistral-7B-Instruct-v0.1",
+                    messages=[{"role": "user", "content": prompt}],
+                )
+            used_tokens = response.usage.total_tokens
+            return response.choices[0].message.content.strip(), used_tokens
+        except Exception as e:
+            print(f"Error occurred: {e}. Retrying in {20} seconds...")
+            time.sleep(20)
+    return None, 0
 
 
 def chatgpt_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_tokens = 2000):
+
     for i in range(max_retries):
         try:
-            response = openai.ChatCompletion.create(
+            response = gpt_client.chat.completions.create(
                 model=model,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                request_timeout=40,
+                timeout=40,
                 messages=[{'role': 'user', 'content': prompt}]
             )
-            write_gpt_resp(prompt,response)
-            used_tokens = response["usage"]["total_tokens"]
-            return response["choices"][0]["message"]["content"].strip(), used_tokens
+            # write_gpt_resp(prompt,response)
+            used_tokens = response.usage.total_tokens
+            return response.choices[0].message.content.strip(), used_tokens
         except Exception as e:
             print(f"Error occurred: {e}. Retrying in {2} seconds...")
             time.sleep(2)
     return None, 0
 
-# def chatgpt_api(prompt, model=gpt_4_turbo, temperature=0.0, max_retries=64):
-#     for i in range(max_retries):
-#         try:
-#             response = gpt4.get_gpt_response(prompt, model)
-            
-#             # openai.ChatCompletion.create(
-#             #     model=model,
-#             #     max_tokens=2000,
-#             #     temperature=temperature,
-#             #     request_timeout=40,
-#             #     messages=[{'role': 'user', 'content': prompt}]
-#             # )
-#             # used_tokens = response["usage"]["total_tokens"]
-#             # return response["choices"][0]["message"]["content"].strip(), used_tokens
-#             return response, 0
-#         except Exception as e:
-#             print(f"Error occurred: {e}. Retrying in {2} seconds...")
-#             time.sleep(2)
-#     return None, 0
+
+def llm_api(prompt, model=gpt_4_turbo, temperature=0.5, max_retries=64, max_tokens = 2000, api = useapi) :
+    if api == "gemini" :
+        model = 'gemini_pro'
+        return gemini_api(prompt,model, temperature, max_retries, max_tokens)
+    elif api == gpt_4_turbo or api == gpt_4 :
+        return chatgpt_api(prompt, model=model, temperature=temperature, max_retries=7,max_tokens = max_tokens)
+    elif api == 'llama' :
+        return llama_api(prompt, model="meta-llama/Llama-2-70b-chat-hf", temperature=temperature, max_retries=7,max_tokens = max_tokens)
+    elif api == "mistral" :
+        return mistral_api(prompt, model=model, temperature=temperature, max_retries=7,max_tokens = max_tokens)
+    
+    
+    return None, 0
+    
+
 
 def generate_conversation(task_name, api = 'gemini'): 
     prompt = f"""Simulate a conversation between a taskbot system and a user about {task_name}. 
@@ -229,23 +303,13 @@ class DataGenerator:
 
     def get_attributes(self, attributes) :
         attri = {}
-        # for key_evid in attributes :
-        #     vals = key_evid['evidences']
-            
-        #     str = ''
-        #     for val in vals :
-        #         val2 = val['value']
-        #         if val2 in str : # string matching
-        #             str = val
-
-
-        #     attri['key'] = str
         for key in attributes :
             val = attributes[key][0]
             attri[key] = val
 
 
         return attri
+    
     
     def truncate_to(self, trstr, max_length = 200) :
         return " ".join(trstr.split(" ")[:max_length])
@@ -885,7 +949,9 @@ class DataGenerator:
                 #     response = self.fix_json_string(response)
                 # except :
                 prompt = "fix the json below, expected format is {}, give only the correct json in your response nothing else:\n{}".format(json_format, response)
-                response, used_tokens = llm_api(prompt, model=gpt_4, max_retries=7, api = useapi) # gpt_4 # gpt_4_turbo
+                # prompt = "strictly follow the format {} and fix the json below,give only the correct json in your response nothing else:\n{}".format(json_format, response)
+                response, used_tokens = chatgpt_api(prompt, model=gpt_4, max_retries=7)
+                # response, used_tokens = llm_api(prompt, model=gpt_4, max_retries=7, api = gpt_4) # gpt_4 # gpt_4_turbo
                 total_used_tokens[gpt_4] += used_tokens
                 # total_used_tokens[gpt_4] += 1
                 if response is None:
@@ -895,7 +961,18 @@ class DataGenerator:
                     response = json.loads(response)
                 except:
                     write_error(f'ERROR: {prompt}')
-                    response = None
+                    # prompt = "Remove backslash and correct the json in your response nothing else:\n{}".format(json_format, response)
+                    # # response, used_tokens = chatgpt_api(prompt, model=gpt_4, max_retries=7)
+                    # response, used_tokens = llm_api(prompt, model=gpt_4, max_retries=7, api = gpt_4) # gpt_4 # gpt_4_turbo
+                    prompt = "fix the json below, expected format is {}, give only the correct json in your response nothing else:\n{}".format(json_format, response)
+                    # prompt = "strictly follow the format {} and fix the json below,give only the correct json in your response nothing else:\n{}".format(json_format, response)
+                    response, used_tokens = chatgpt_api(prompt, model=gpt_4, max_retries=7)
+                    # response, used_tokens = llm_api(prompt, model=gpt_4, max_retries=7, api = gpt_4) # gpt_4 # gpt_4_turbo
+                    
+                    try :
+                        response = json.loads(response)
+                    except :
+                        response = None
         elif multi_output:
             options = []
             # if intent == intents.show_attributes :
@@ -1230,26 +1307,46 @@ class DataGenerator:
 
     def generate_conversations(self, limit=10):
         added_ids = set()
-        # older_files = ['data/ecom_conversations_test.jsonl']
-        # added_ids = self.add_ids(older_files, added_ids)
+        # older_files = ['data/complete_conversation_mistral.jsonl']
+        # older_files = ['data/complete_conversations_llama_test_100.jsonl']
+        # older_files = ['data/complete_conversations_llama_test_100.jsonl', 'data/ecom_conversations_test_100_llama_2.jsonl']
+        older_files = ['data/ecom_conversations_test_mistral7b_short_desc_completed.jsonl']
+        added_ids = self.add_ids(older_files, added_ids)
         # remove_ids = set()
         # remove_ids = self.add_ids(['errors_product_id.jsonl'], remove_ids)
         # added_ids
         products = []
         products_for_sampling = []
-        with open(inventory_file, 'r') as file:
+        
+        with open(inventory_100_file_test, 'r') as file:
             for line in file:
                 d = json.loads(line)
-                # d = self.add_locations(d)
                 products_for_sampling.append(d)
                 if d['id'] not in added_ids : # or d['id'] in remove_ids
                     prdt = self.format_product(d)
                     products.append(prdt)
+                    added_ids.add(d['id'])
 
-        o = open('data/ecom_conversations_test_gemini.jsonl', 'a')
+        with open(inventory_file, 'r') as file:
+            for line in file:
+                d = json.loads(line)
+                # d = self.add_locations(d)
+                if d['id'] not in added_ids :
+                    products_for_sampling.append(d)
+                    added_ids.add(d['id'])
+                # if d['id'] not in added_ids : # or d['id'] in remove_ids
+                #     prdt = self.format_product(d)
+                #     products.append(prdt)
+        
+
+        # o = open('data/complete_conversations_llama_test_100.jsonl', 'a')
+        # o = open('data/ecom_conversations_test_100_mistral_3.jsonl', 'a')
+        o = open('data/ecom_conversations_test_mistral7b_short_desc.jsonl', 'a')
+        
         total_used_tokens = {gpt_4_turbo: 0, gpt_4: 0}
         completed = 0
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        print(len(products))
+        with ThreadPoolExecutor(max_workers=3) as executor:
             futures = []
             
             for prod in products[:limit]:
@@ -1269,14 +1366,63 @@ class DataGenerator:
                 completed += 1
         
         print(total_used_tokens)
-        estimated_cost = (total_used_tokens[gpt_4_turbo]/2*0.001/1000 + total_used_tokens[gpt_4_turbo]/2*0.003/1000) + \
+        estimated_cost = (total_used_tokens[gpt_4_turbo]/2*0.13/1000000 + total_used_tokens[gpt_4_turbo]/2*0.13/1000000) + \
             (total_used_tokens[gpt_4]/2*0.03/1000 + total_used_tokens[gpt_4]/2*0.06/1000)
-        print("Estimated cost: ${:.2f}".format(estimated_cost))
+        print("Estimated cost: ${:.4f}".format(estimated_cost))
+        estimate_cost_new_llm = (total_used_tokens[gpt_4_turbo]/2*0.13/1000000 + total_used_tokens[gpt_4_turbo]/2*0.13/1000000)
+        print("Estimated cost of only new llm: ${:.4f}".format(estimate_cost_new_llm))
 
 if __name__ == '__main__':
     generator = DataGenerator()
+    generator.generate_conversations(limit=20)
+    # generator.generate_conversations(limit=100)
+    # mistral single conversation: total tokens: 21533 
+    # cost estimate : 0.006029 model tiny
+    # cost estimate : 0.10766500000000001 model medium
+    # cost estimate : 0.025839599999999997 model small Estimated cost of only new llm: $0.5059 30 convs {'gpt-4-1106-preview': 421592, 'gpt-4': 74190}
+'''
 
-    generator.generate_conversations(limit=108)
+Mistral: medium 30
+{'gpt-4-1106-preview': 450116, 'gpt-4': 86952}
+Estimated cost: $6.1634
+Estimated cost of only new llm: $2.2506
 
+medium 30:
+{'gpt-4-1106-preview': 434049, 'gpt-4': 87721}
+Estimated cost: $6.1177
+Estimated cost of only new llm: $2.1702
+
+medium 42:
+{'gpt-4-1106-preview': 648370, 'gpt-4': 128634}
+Estimated cost: $9.0304
+Estimated cost of only new llm: $3.2418
+
+medium 17
+{'gpt-4-1106-preview': 210171, 'gpt-4': 40478}
+Estimated cost: $2.8724
+Estimated cost of only new llm: $1.0509
+
+
+
+llama: short desc
+Estimated cost: $14.5281
+Estimated cost of only new llm: $0.1175
+Estimated cost of only new llm: $0.3330
+
+mistral: short desc
+mistralai/Mixtral-8x7B-Instruct-v0.1
+{'gpt-4-1106-preview': 85911, 'gpt-4': 14765}
+Estimated cost: $0.7332
+Estimated cost of only new llm: $0.0687
+
+{'gpt-4-1106-preview': 1294907, 'gpt-4': 229652}
+Estimated cost: $11.3703
+Estimated cost of only new llm: $1.0359
+
+{'gpt-4-1106-preview': 481340, 'gpt-4': 85780}
+Estimated cost: $4.2452
+Estimated cost of only new llm: $0.3851
+
+'''
 
 

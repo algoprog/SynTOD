@@ -50,7 +50,7 @@ def create_single_file() :
 
     products = []
 
-    with open('data/complete_conversations_llama_4.jsonl', 'r') as file:
+    with open('data/complete_conversations_llama_recipe_3.jsonl', 'r') as file:
         for line in file:
             d = json.loads(line)
             products.append(d)
@@ -60,7 +60,7 @@ def create_single_file() :
     #         d = json.loads(line)
     #         products.append(d)    
 
-    with open("data/complete_conversations_llama_test_100.jsonl", 'a') as file :
+    with open("data/complete_conversations_llama_recipe.jsonl", 'a') as file :
         for d in products :
             json.dump(d, file)
             file.write('\n')
@@ -69,38 +69,41 @@ def create_single_file() :
 def separate_incomplete_conversations():
     incomplete_conversations = []
     complete_conversations = []
-    with open("data/ecom_conversations_test_100_llama_3.jsonl", 'r') as file :
+    unique_set = set()
+    with open("data/ecom_conversations_test_mistral7b_short_desc.jsonl", 'r') as file :
         for line in file:
             d = json.loads(line)
             path_length = len(d['path'])
             conv_length = len(d['conversation'])
             if path_length == 31 and conv_length == 30 :
                 complete_conversations.append(d)
+                unique_set.add(d['id'])
             elif path_length != conv_length + 1 :
                 incomplete_conversations.append(d)
             else :
                 complete_conversations.append(d)
+                unique_set.add(d['id'])
     
-    with open("data/incomplete_conversation_llama.jsonl", 'w') as file :
-        for d in incomplete_conversations :
-            json.dump(d, file)
-            file.write('\n')
+    # with open("data/incomplete_conversation_llama.jsonl", 'w') as file :
+    #     for d in incomplete_conversations :
+    #         json.dump(d, file)
+    #         file.write('\n')
     
-    with open("data/complete_conversations_llama_4.jsonl", 'w') as file :
+    with open("data/ecom_conversations_test_mistral7b_short_desc_completed.jsonl", 'w') as file :
         for d in complete_conversations :
             json.dump(d, file)
             file.write('\n')
 
-    with open("data/incomplete_conversation_product_id_llama.jsonl", 'w') as file :
-        for d in incomplete_conversations :
-            json.dump({"id":d['id']}, file)
-            file.write('\n')
+    # with open("data/incomplete_conversation_product_id_llama.jsonl", 'w') as file :
+    #     for d in incomplete_conversations :
+    #         json.dump({"id":d['id']}, file)
+    #         file.write('\n')
 
 
 def separate_incomplete_recipe_conversations():
     incomplete_conversations = []
     complete_conversations = []
-    with open("data/conversations_llama_recipe.jsonl", 'r') as file :
+    with open("data/complete_conversations_llama_recipe_2.jsonl", 'r') as file :
         for line in file:
             d = json.loads(line)
             path_length = len(d['path'])
@@ -112,25 +115,27 @@ def separate_incomplete_recipe_conversations():
             else :
                 complete_conversations.append(d)
     
-    with open("data/incomplete_conversations_llama_recipe.jsonl", 'w') as file :
-        for d in incomplete_conversations :
-            json.dump(d, file)
-            file.write('\n')
+    # with open("data/incomplete_conversations_llama_recipe.jsonl", 'w') as file :
+    #     for d in incomplete_conversations :
+    #         json.dump(d, file)
+    #         file.write('\n')
     
-    with open("data/complete_conversations_llama_recipe.jsonl", 'w') as file :
+    with open("data/complete_conversations_llama_recipe_3.jsonl", 'w') as file :
         for d in complete_conversations :
             json.dump(d, file)
             file.write('\n')
 
-    with open("data/incomplete_conversation_product_id_llama_recipe.jsonl", 'w') as file :
-        for d in incomplete_conversations :
-            json.dump({"id":d['id']}, file)
-            file.write('\n')
+    # with open("data/incomplete_conversation_product_id_llama_recipe.jsonl", 'w') as file :
+    #     for d in incomplete_conversations :
+    #         json.dump({"id":d['id']}, file)
+    #         file.write('\n')
 
 
 
-separate_incomplete_recipe_conversations()
+# separate_incomplete_recipe_conversations()
 
 # create_single_file()
 
 # separate_conversations()
+            
+separate_incomplete_conversations()

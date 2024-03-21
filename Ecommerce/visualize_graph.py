@@ -14,23 +14,28 @@ def visualizeGraph(graph) :
             G.add_edge(node, edge) # , weight=weight
 
     # Define node positions for better layout
-    pos = nx.spring_layout(G, scale=0.05, iterations=10)
-    # pos = nx.kamada_kawai_layout(G, scale = 5, dim = 2)
+    # pos = nx.spring_layout(G, scale=0.05, iterations=10)
+    pos = nx.kamada_kawai_layout(G, scale = 5, dim = 2)
     # pos = nx.nx_pydot.graphviz_layout(G, prog="dot") # , prog="dot"
     # pos = nx.nx_pydot.pydot_layout(G ) # , prog="dot"
     # pos = nx.circular_layout(G)
     # pos = nx.nx_pydot.graphviz_layout(G)
     # pos = nx.nx_pydot.graphviz_layout(G, prog="dot")
     # pos = nx.planar_layout(G)
+    
+    # label_pos = {node:(coords[0], coords[1]-0.05) for node,coords in pos.items()}
 
     # Draw the graph # 
-    nx.draw(G, pos, with_labels=True, node_size=1000, node_color='skyblue', font_size=5, font_color='brown', font_weight='bold', arrowsize=10)
+    # nx.draw(G, pos, with_labels=False)
+    nx.draw(G, pos, with_labels=True, node_size=1000, node_color='skyblue', font_size=10, font_color='black', font_weight='bold', arrowsize=8)
+    # nx.draw_networkx_labels(G, label_pos)
+
 
     # Add edge labels (weights)
     edge_labels = nx.get_edge_attributes(G, 'weight') # 
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='red')
     
-    # nx.write_gexf(G, 'data/ecom_graph_visualize.gexf', version="1.2draft")
+    nx.write_gexf(G, 'data/ecom_graph_visualize.gexf', version="1.2draft")
 
     # Show the plot
     plt.show()
@@ -173,7 +178,7 @@ recipe_graph = {
 
 
 
-# skeleton = AltTaskPathGenerator()
+skeleton = AltTaskPathGenerator()
 
-visualizeGraph(recipe_graph)
-# visualizeGraph(skeleton.graph)
+# visualizeGraph(recipe_graph)
+visualizeGraph(skeleton.graph)
