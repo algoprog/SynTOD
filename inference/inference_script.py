@@ -12,7 +12,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     session_id = 'test'
     llm = LLM(args.model)
-    sampling_params = SamplingParams(temperature=0, top_p=1, stop=["###"], stop_token_ids=[835], max_tokens=2048)
+    sampling_params = SamplingParams(temperature=0.0, top_p=1, stop=["###"], stop_token_ids=[835], max_tokens=4096)
     with open(args.test_file) as f:
         for line in f.readlines():
             ground_truth = ''
@@ -28,6 +28,7 @@ if __name__ == "__main__":
                     ground_truth += "###" + mode + ":" + utterance
                     generated += "###" + mode + ":" + utterance + "## {\"intent\": \""
                     response = llm.generate([ground_truth + "## {\"intent\": \""], sampling_params)[0].outputs[0].text.strip()
+                    
                     if response.endswith("###"):
                         response = response[:-3]
                     ground_truth += "##" + intent_data

@@ -4,15 +4,14 @@
 #SBATCH -p hgx-alpha  # Partition
 #SBATCH -t 168:00:00  # Wall Time
 #SBATCH -G 1  # Number of GPUs
-#SBATCH -o eval-%j.out  # %j = job ID
-#SBATCH -e eval-%j.err  # %j = job ID
+#SBATCH -o slurm-inference-a100-%j.out  # %j = job ID
+#SBATCH -e slurm-inference-a100-%j.err  # %j = job ID
 #SBATCH --mail-type=ALL  
 eval "$(conda shell.bash hook)"
 conda activate vllm
 export HF_HOME=/work/pi_hzamani_umass_edu/ppromthaw/cache
 python -c "from huggingface_hub.hf_api import HfFolder; HfFolder.save_token('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')"
-python evaluation_script.py \
-  --model kimmypracha/mistral-marunashop-v3-0.2 \
-  --eval_file ecommerce/mistral-marunashop-v3-all-0.2.jsonl \
-  --output_dir final_results/mistral-marunashop-v3-all/20/ \
-  --domain ecommerce
+python inference_script.py \
+  --model kimmypracha/llama-marunachef-v3-0.05 \
+  --output_file validate_files/recipe/llama-marunachef-v3-0.05.jsonl \
+  --test_file /project/pi_hzamani_umass_edu/chris/convtod/inference/validate_recipe_train.jsonl

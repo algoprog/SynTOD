@@ -12,6 +12,6 @@ conda activate vllm
 export HF_HOME=/project/pi_hzamani_umass_edu/ppromthaw/recipe-inferences/cache
 python -c "from huggingface_hub.hf_api import HfFolder; HfFolder.save_token('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')"
 python inference_script.py \
-  --model kimmypracha/llama-marunashop-v2-a100-2115 \
-  --output_file ecommerce/marunashop-v2-gemini.jsonl \
-  --test_file /project/pi_hzamani_umass_edu/chris/marunashop/preprocess/test_gemini_v2.jsonl
+  --model kimmypracha/llama-marunachef-v3-0.05 \
+  --output_file recipe/marunachef-v3-gemini-0.05.jsonl \
+  --test_file /project/pi_hzamani_umass_edu/chris/marunachef/preprocess/test_gemini_v3.jsonl
