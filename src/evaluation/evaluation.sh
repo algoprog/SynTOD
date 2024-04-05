@@ -13,6 +13,6 @@ export HF_HOME=/work/pi_hzamani_umass_edu/ppromthaw/cache
 python -c "from huggingface_hub.hf_api import HfFolder; HfFolder.save_token('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')"
 python evaluation_script.py \
   --model kimmypracha/mistral-marunashop-v3-0.2 \
-  --eval_file ecommerce/mistral-marunashop-v3-all-0.2.jsonl \
-  --output_dir final_results/mistral-marunashop-v3-all/20/ \
+  --eval_file ../../data/ecommerce/03_inference_pair/mistral-marunashop-v3-all-0.2.jsonl \
+  --output_dir ../../reports/mistral-marunashop-v3-all/20/ \
   --domain ecommerce

@@ -13,5 +13,5 @@ export HF_HOME=/work/pi_hzamani_umass_edu/ppromthaw/cache
 python -c "from huggingface_hub.hf_api import HfFolder; HfFolder.save_token('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')"
 python inference_script.py \
   --model kimmypracha/llama-marunachef-v3-0.05 \
-  --output_file validate_files/recipe/llama-marunachef-v3-0.05.jsonl \
-  --test_file /project/pi_hzamani_umass_edu/chris/convtod/inference/validate_recipe_train.jsonl
+  --output_file ../../data/recipe/02_inference_pair/llama-marunachef-v3-0.05-validate.jsonl \
+  --test_file ../../data/recipe/02_oasst/validate_recipe_train.jsonl
