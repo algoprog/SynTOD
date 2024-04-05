@@ -28,7 +28,7 @@ python3.9 qlora.py \
     --warmup_ratio 0.03 \
     --lr_scheduler_type constant \
     --gradient_checkpointing \
-    --dataset ./data/marunachef/train_v6.jsonl \
+    --dataset ../../data/recipe/02_oasst/train_v6.jsonl \
     --dataset_format oasst1 \
     --run_name phi-1_5-marunachef-v1 \
     --source_max_len 0 \
