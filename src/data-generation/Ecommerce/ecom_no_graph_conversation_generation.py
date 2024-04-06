@@ -14,11 +14,11 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 
 # use proper apis
-GOOGLE_API_KEY = 'AIzaSyCqwA72HpU3wAASrwvhXUssTYahoBoON6o'
-MISTRAL_KEY = '69Bm2dEEn10ZDK5EKQtgiiEtB8FF2UGN'
-LLAMA_KEY = 'gAbxAVfNYXdFSQxFbR4W4xRJOCVz6UU0'
+GOOGLE_API_KEY = ''
+MISTRAL_KEY = ''
+LLAMA_KEY = ''
 
-openai_key = "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"
+openai_key = ""
 
 
 
@@ -413,6 +413,7 @@ def add_product_seed_id_cost_till_now(limit = 2000) :
     
     return 
 
+# limit the number of conversations
 generate_conversations_nograph(limit=10)
 get_cost_till_now()
 

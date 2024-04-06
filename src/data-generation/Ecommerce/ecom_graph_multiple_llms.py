@@ -23,9 +23,10 @@ from constants import *
 from openai import OpenAI
 
 
-GOOGLE_API_KEY = 'AIzaSyCqwA72HpU3wAASrwvhXUssTYahoBoON6o'
-MISTRAL_KEY = '69Bm2dEEn10ZDK5EKQtgiiEtB8FF2UGN'
-LLAMA_KEY = 'gAbxAVfNYXdFSQxFbR4W4xRJOCVz6UU0'
+# use proper api keys
+GOOGLE_API_KEY = ''
+MISTRAL_KEY = ''
+LLAMA_KEY = ''
 
 openai.api_key = openai_key
 
@@ -41,7 +42,7 @@ gpt_4 = 'gpt-4'
 
 gpt_client = OpenAI(
     # This is the default and can be omitted
-    api_key=openai_key,
+    api_key='use_openai_key',
 )
 
 gemini_api_key = GOOGLE_API_KEY
@@ -1374,55 +1375,8 @@ class DataGenerator:
 
 if __name__ == '__main__':
     generator = DataGenerator()
+    # limit the number of conversations
     generator.generate_conversations(limit=20)
-    # generator.generate_conversations(limit=100)
-    # mistral single conversation: total tokens: 21533 
-    # cost estimate : 0.006029 model tiny
-    # cost estimate : 0.10766500000000001 model medium
-    # cost estimate : 0.025839599999999997 model small Estimated cost of only new llm: $0.5059 30 convs {'gpt-4-1106-preview': 421592, 'gpt-4': 74190}
-'''
-
-Mistral: medium 30
-{'gpt-4-1106-preview': 450116, 'gpt-4': 86952}
-Estimated cost: $6.1634
-Estimated cost of only new llm: $2.2506
-
-medium 30:
-{'gpt-4-1106-preview': 434049, 'gpt-4': 87721}
-Estimated cost: $6.1177
-Estimated cost of only new llm: $2.1702
-
-medium 42:
-{'gpt-4-1106-preview': 648370, 'gpt-4': 128634}
-Estimated cost: $9.0304
-Estimated cost of only new llm: $3.2418
-
-medium 17
-{'gpt-4-1106-preview': 210171, 'gpt-4': 40478}
-Estimated cost: $2.8724
-Estimated cost of only new llm: $1.0509
-
-
-
-llama: short desc
-Estimated cost: $14.5281
-Estimated cost of only new llm: $0.1175
-Estimated cost of only new llm: $0.3330
-
-mistral: short desc
-mistralai/Mixtral-8x7B-Instruct-v0.1
-{'gpt-4-1106-preview': 85911, 'gpt-4': 14765}
-Estimated cost: $0.7332
-Estimated cost of only new llm: $0.0687
-
-{'gpt-4-1106-preview': 1294907, 'gpt-4': 229652}
-Estimated cost: $11.3703
-Estimated cost of only new llm: $1.0359
-
-{'gpt-4-1106-preview': 481340, 'gpt-4': 85780}
-Estimated cost: $4.2452
-Estimated cost of only new llm: $0.3851
-
-'''
-
+    
+    
 

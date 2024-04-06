@@ -25,7 +25,8 @@ from ecom_retriever import Retriever
 from constants import *
 
 
-openai.api_key = openai_key
+# use proper openai key
+openai.api_key = "use_proper_openai_key"
 lock = threading.Lock()
 gpt_resp_lock = threading.Lock()
 
@@ -1237,6 +1238,6 @@ class DataGenerator:
 
 if __name__ == '__main__':
     generator = DataGenerator()
-
+    # limit the number of conversations
     generator.generate_conversations(limit=1)
     
