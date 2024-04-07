@@ -9,9 +9,7 @@
 #SBATCH --mail-type=ALL  
 eval "$(conda shell.bash hook)"
 conda activate vllm
-export HF_HOME=/project/pi_hzamani_umass_edu/ppromthaw/recipe-inferences/cache
-python -c "from huggingface_hub.hf_api import HfFolder; HfFolder.save_token('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')"
 python inference_script.py \
-  --model kimmypracha/llama-marunachef-v3-0.05 \
+  --model anonymous/llama-marunachef-v3-0.05 \ #anonymous model name
   --output_file ../../data/recipe/03_inference_pair/marunachef-v3-gemini-0.05.jsonl \
   --test_file ../../data/recipe/02_oasst/test_gemini_v3.jsonl

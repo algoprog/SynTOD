@@ -4,7 +4,6 @@ import sys
 import argparse
 
 if __name__ == "__main__":
-    # python3.8 -m gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:8080 backend:app
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default='kimmypracha/llama-marunachef-v1-c1-a100-940')
     parser.add_argument("--output_file",default="fine_tuned_generated_output_a100.jsonl")
