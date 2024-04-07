@@ -28,129 +28,70 @@ slot_types = {
     "list_of_products" : "numeric_list",
     "intent" : "intent"
 }
-class NearestNeighbor:
-    def __init__(self, items, model_name='all-MiniLM-L6-v2'):
-        self.model = SentenceTransformer(model_name)
-        self.precompute(items)
+ecommerce_intent = ['suggest_product', 'select_i', 'option_selected', 'add_to_cart',  'buy_cart', 'more_results', 'search_product', 'add_for_compare', 'open_domain_qa', 'show_cart', 'product_qa', 'acknowledge', 'remove_from_cart', 'repeat', 'generic_product_query', 'user_clarifies', 'delivery_address', 'show_attributes', 'chitchat', 'compare_products', 'remove_from_comparison']
+recipe_intent = ['acknowledge_step', 'finish_task', 'done_step', 'acknowledge_task', 'option_selected', 'suggest_recipe', 'select_i', 'show_step', 'show_ingredients', 'show_suggestions', 'next_step', 'medical_advice', 'begin_task', 'search_recipe', 'more_results', 'in_task_qa', 'repeat', 'open_domain_qa', 'financial_advice', 'chitchat', 'subjective_qa', 'personal_information', 'offense', 'dangerous_task', 'legal_advice', 'set_timer', 'deny', 'goto_step', 'suicide_attempt']
+nn = None
+domain_intent = []
 
-    def precompute(self, items):
-        items = [i.replace('_', ' ') for i in items]
-        self.items = items
-        self.embeddings = self.model.encode(items, convert_to_tensor=True)
-
-    def find_nearest(self, query):
-        if self.items is None or self.embeddings is None:
-            raise Exception("You must run precompute() before find_nearest()")
-
-        query_embedding = self.model.encode(query, convert_to_tensor=True)
-        cos_scores = cosine_similarity(
-            query_embedding.cpu().reshape(1, -1), 
-            self.embeddings.cpu().reshape(len(self.items), -1)
-        )
-
-        top_result = np.argmax(cos_scores)
-        return self.items[top_result]
-
-
+def helper_metrics(num_same, ref_len, hyp_len): 
+    if hyp_len == 0 or ref_len == 0:
+        return 0.0, 0.0, 0.0
+    precision = 1.0 * num_same / hyp_len
+    recall = 1.0 * num_same / ref_len
+    if precision + recall > 0.0:
+        f1 = 2 * precision * recall / (precision + recall)
+    else:
+        f1 = 0.0
+    return precision, recall, f1
+    
 def calculate_slots(ref, hyp, slot, types):
     if slot not in hyp:
         return 0.0, 0.0, 0.0
     if types == "slot":
+        if ref[slot] is None: 
+            ref[slot] = ""
         if slot == "address" : # special case for data processing
             try:
-                ref_slot = ref[slot]['country'] if not isinstance(ref[slot], str) else ref[slot]
+                ref[slot] = ref[slot]['country'] if not isinstance(ref[slot], str) else ref[slot]
+                hyp[slot] = hyp[slot]['country'] if not isinstance(hyp[slot], str) else hyp[slot]
             except:
-                print("======= LINE 60 ERROR ==========")
-                print(ref)
-                print(hyp)
-                print(slot)
-                print("==========================")
                 return 0.0, 0.0, 0.0
-            
-            hyp[slot] = hyp[slot]['country'] if not isinstance(hyp[slot], str) else hyp[slot]
-        elif slot == "query" and ref[slot] is None:
-            ref_slot = ""
         elif slot == "query" and isinstance(ref[slot], list): # patch fix for suggestion
-            ref_slot = " ".join(ref[slot]) + " recipe"
+            ref[slot] = " ".join(ref[slot]) + " recipe"
         else:
-            ref_slot = ref[slot]
+            ref[slot] = ref[slot]
         try:
-            ref_token = tokenizer.encode(ref_slot)
-        except:
-            print("=========REF============")
-            print(ref)
-            print(hyp)
-            print(slot)
-            print("==========================")
-            return 0.0, 0.0, 0.0
-        # try:
-        try:
+            ref_token = tokenizer.encode(ref[slot])
             hyp_token = tokenizer.encode(hyp[slot] if slot in hyp else "")
         except:
-            print("=========HYP============")
-            print(ref)
-            print(hyp)
-            print(slot)
-            print("==========================")
             return 0.0, 0.0, 0.0
+
         common = collections.Counter(ref_token) & collections.Counter(hyp_token)
-        num_same = sum(common.values())
-        if len(hyp_token) == 0:
-            num_same = 0
-        if num_same == 0:
-            return 0.0, 0.0, 0.0
-        precision = 1.0 * num_same / len(hyp_token)
-        recall = 1.0 * num_same / len(ref_token)
-        # f1
-        if precision + recall > 0.0:
-            f1 = 2 * precision * recall / (precision + recall)
-        else:
-            f1 = 0.0
-        return precision, recall, f1
+        num_same = sum(common.values()) if len(hyp_token) !=0 else 0
+
+        return helper_metrics(num_same, len(ref_token), len(hyp_token))
+
     elif types == "numerical":
         assert int(ref[slot]) == ref[slot], f"{ref[slot]} is not int :{type(ref[slot])}"
         if slot not in hyp:
             return 0.0, 0.0, 0.0
-        if ref[slot] == hyp[slot]:
-            return 1.0,1.0,1.0
-        else:
-            return 0.0, 0.0, 0.0
+        return (1.0,1.0,1.0) if ref[slot] == hyp[slot] else (0.0,0.0,0.0)
+    
     elif types == "numeric_list":
         if slot == "list_of_products" and len(ref[slot]) > 0 and not isinstance(ref[slot][0], str):
             ref_slot = [item["title"] for item in ref[slot]]
         else:
             ref_slot = ref[slot]
+
         num_same = len(set(ref_slot) & set(hyp[slot]))
-        if len(ref[slot]) == 0 or len(hyp[slot]) == 0:
-            return 0.0, 0.0, 0.0
-        precision = 1.0 * num_same / len(hyp[slot])
-        recall = 1.0 * num_same / len(ref[slot])
-        if precision + recall > 0.0:
-            f1 = 2 * precision * recall / (precision + recall)
-        else:
-            f1 = 0.0
-        return precision, recall, f1
+        return helper_metrics(num_same, len(ref[slot]), len(hyp[slot]))
+
     elif types == "flatten_slot":
-        # try:
         ref_slots = set([str(list(item.keys())[0]) + " : " + str(list(item.values())[0]) for item in ref[slot]])
         hyp_slots = set([str(list(item.keys())[0]) + " : " + str(list(item.values())[0]) for item in hyp[slot]])
-        # except:
-        #     global misgen_flag
-        #     misgen_flag = True
-        #     print(ref)
-        #     print(hyp)
-        #     print()
-        #     return 0.0, 0.0, 0.0
         num_same = len(ref_slots & hyp_slots)
-        if len(hyp_slots) == 0 or len(ref_slots) == 0:
-            return 0.0, 0.0, 0.0
-        precision = 1.0 * num_same / len(hyp_slots)
-        recall = 1.0 * num_same / len(ref_slots)
-        if precision + recall > 0.0:
-            f1 = 2 * precision * recall / (precision + recall)
-        else:
-            f1 = 0.0
-        return precision, recall, f1
+        return helper_metrics(num_same, len(ref_slots), len(hyp_slots))
+        
 
 def calculate_metrics(ref, hyp):
     metrics = []
@@ -200,64 +141,7 @@ def plot_confusion_matrix(cm, classes,
     plt.show()
     fig.savefig(file_path)
 
-ecommerce_intent = ['suggest_product', 'select_i', 'option_selected', 'add_to_cart',  'buy_cart', 'more_results', 'search_product', 'add_for_compare', 'open_domain_qa', 'show_cart', 'product_qa', 'acknowledge', 'remove_from_cart', 'repeat', 'generic_product_query', 'user_clarifies', 'delivery_address', 'show_attributes', 'chitchat', 'compare_products', 'remove_from_comparison']
-recipe_intent = ['acknowledge_step', 'finish_task', 'done_step', 'acknowledge_task', 'option_selected', 'suggest_recipe', 'select_i', 'show_step', 'show_ingredients', 'show_suggestions', 'next_step', 'medical_advice', 'begin_task', 'search_recipe', 'more_results', 'in_task_qa', 'repeat', 'open_domain_qa', 'financial_advice', 'chitchat', 'subjective_qa', 'personal_information', 'offense', 'dangerous_task', 'legal_advice', 'set_timer', 'deny', 'goto_step', 'suicide_attempt']
-nn = None
-domain_intent = []
-
 def clean_intent(intent):
-    typo_map = {
-        "shopping_list" : "show_cart",
-        "ADD TO CART"  : "add_to_cart",
-        "health_qa"  : "open_domain_qa",
-        "compare_products_by_price"  : "compare_products",
-        "shows_attributes" : "show_attributes",
-        "show_comparison_list"  : "compare_products",
-        "show_more_results"  : "more_results",
-        "confirm" : "acknowledge",
-        "low_price_query" : "generic_product_query",
-        "buy_cartridge_4pack" : "buy_cart",
-        "begin" : "begin_task",
-        "show_more": "more_results",
-        "select" : "select_i",
-        "finish" : "finish_task",
-        "next_selection": "next_step",
-        "search_results": "more_results",
-        "show_next_step": "next_step",
-        "medical_qa" : "medical_advice",
-        "select_recipe": "select_i",
-        "set_user_location_and_age": "personal_information",
-        "danger_task": "dangerous_task",
-        "risk_assessment": "dangerous_task", 
-        "done_task": "done_step",
-        "next" : "next_step",
-        "risk" : "dangerous_task",
-        "danger" : "dangerous_task",
-        "continue" : "next_step",
-        "show_domain_qa" : "open_domain_qa",
-        "show_random_fact" : "chitchat",
-        "recipe": "search_recipe",
-        "show_recipe": "search_recipe",
-        "danger_assessment": "dangerous_task",
-        "danger_ahead" : "dangerous_task",
-        "select_id": "select_i",
-        "set_intent_for_recipe_search" : "search_recipe",
-        "show_prestigious_recipe": "search_recipe",
-        "next_intent":"next_step",
-        "search_task":"search_recipe",
-        "set_intent":"set_timer",
-        "danger_prevention" : "dangerous_task",
-        "danger_sign" : "dangerous_task",
-        "ask_product_question" : "product_qa",
-        "low_price": "??",
-        "view_attributes": "show_attributes",
-        "general_query": "generic_product_query",
-        "repeat_last": "repeat",
-        "show_comparison": "compare_products",
-        "user clarifies": "user_clarifies",
-        "add_for_sale": "add_to_cart"
-    }
-    # print(nn.find_nearest('This is a test sentence.'))
     merge_intent = {
         "acknowledge_task" : "begin_task",
         "done_step" : "next_step",
@@ -269,13 +153,52 @@ def clean_intent(intent):
         intent = nn.find_nearest(intent).replace(" ","_")
     if (intent in merge_intent):
         intent = merge_intent[intent]
-    # return typo_map[intent] if intent in typo_map else intent
     return intent
 
 def clean_intent_list(intent_list):
     intent_list = [clean_intent(item) for item in intent_list]
     return intent_list
 
+def ground_to_convlist(ground_text, data_type):
+    history = []
+    for ref in ground_text.split('###')[1:]:
+        if ref.split(':')[0].strip() == 'HUMAN':
+            history.append({"role" : "user", "content" : ref.split(":",1)[1].split("##")[0].strip()})
+            history.append({"role" : "intent", "content" : ref.split("##")[1].strip()})
+        elif ref.split(':')[0].strip() == 'RESULTS' and data_type == "graph":
+            history.append({"role" : "retriever", "content" : ref.split(":",1)[1].strip()})
+        elif ref.split(':')[0].strip() == 'SUGGESTIONS' and data_type == "graph":
+            history.append({"role" : "suggestions", "content" : ref.split(":",1)[1].strip()})
+        elif ref.split(':')[0].strip() == 'RECIPE' and data_type == "graph":
+            history.append({"role" : "task", "content" : ref.split(":",1)[1].strip()})
+        elif ref.split(':')[0].strip() == 'ASSISTANT':
+            history.append({"role" : "system", "content" : ref.split(":",1)[1].strip()})
+        else:
+            assert False, f"ERROR: ref is {ref}"
+    return history
+    
+class NearestNeighbor:
+    def __init__(self, items, model_name='all-MiniLM-L6-v2'):
+        self.model = SentenceTransformer(model_name)
+        self.precompute(items)
+
+    def precompute(self, items):
+        items = [i.replace('_', ' ') for i in items]
+        self.items = items
+        self.embeddings = self.model.encode(items, convert_to_tensor=True)
+
+    def find_nearest(self, query):
+        if self.items is None or self.embeddings is None:
+            raise Exception("You must run precompute() before find_nearest()")
+
+        query_embedding = self.model.encode(query, convert_to_tensor=True)
+        cos_scores = cosine_similarity(
+            query_embedding.cpu().reshape(1, -1), 
+            self.embeddings.cpu().reshape(len(self.items), -1)
+        )
+
+        top_result = np.argmax(cos_scores)
+        return self.items[top_result]
 
 class MetricEvaluator:
     def __init__(self, evaluator_name = "default-eval"):
@@ -336,12 +259,7 @@ class MetricEvaluator:
         cm = np.nan_to_num(confusion_matrix(y_true, y_pred, labels=classes))
         return cm, classes
 
-    def get_intent_metrics(self):
-        metrics = {}
-        details = {}
-        flatten_y_pred = flatten_list(self.intent_pred)
-        flatten_y_true = flatten_list(self.intent_true)
-        acc_list = np.array([accuracy_score(true, pred) for true, pred in zip(self.intent_true, self.intent_pred) if len(true)> 0])
+    def _get_precision_recall_table(self):
         precision_table = defaultdict(list)
         recall_table = defaultdict(list)
         for true, pred in zip(self.intent_true, self.intent_pred):
@@ -354,6 +272,16 @@ class MetricEvaluator:
                 precision_table[key].append(np.mean(value))
             for key, value in temp_recall_table.items():
                 recall_table[key].append(np.mean(value))
+        return precision_table, recall_table
+
+    def get_intent_metrics(self):
+        metrics = {}
+        details = {}
+        flatten_y_pred = flatten_list(self.intent_pred)
+        flatten_y_true = flatten_list(self.intent_true)
+        acc_list = np.array([accuracy_score(true, pred) for true, pred in zip(self.intent_true, self.intent_pred) if len(true)> 0])
+        # Generate precision and recall for each intent
+        precision_table, recall_table = self._get_precision_recall_table()
         
         ## TODO: REVIEW ON THIS PART ##
         precision = np.mean([np.mean(item_list) for item_list in precision_table.values()])
@@ -427,25 +355,6 @@ class MetricEvaluator:
 
         return metrics, details
 
-    
-def ground_to_convlist(ground_text, data_type):
-    history = []
-    for ref in ground_text.split('###')[1:]:
-        if ref.split(':')[0].strip() == 'HUMAN':
-            history.append({"role" : "user", "content" : ref.split(":",1)[1].split("##")[0].strip()})
-            history.append({"role" : "intent", "content" : ref.split("##")[1].strip()})
-        elif ref.split(':')[0].strip() == 'RESULTS' and data_type == "graph":
-            history.append({"role" : "retriever", "content" : ref.split(":",1)[1].strip()})
-        elif ref.split(':')[0].strip() == 'SUGGESTIONS' and data_type == "graph":
-            history.append({"role" : "suggestions", "content" : ref.split(":",1)[1].strip()})
-        elif ref.split(':')[0].strip() == 'RECIPE' and data_type == "graph":
-            history.append({"role" : "task", "content" : ref.split(":",1)[1].strip()})
-        elif ref.split(':')[0].strip() == 'ASSISTANT':
-            history.append({"role" : "system", "content" : ref.split(":",1)[1].strip()})
-        else:
-            assert False, f"ERROR: ref is {ref}"
-    return history
-
 class BatchEvaluator:
     def __init__(self, length_params = [10000]):
         self.length_params = length_params
@@ -498,19 +407,15 @@ if __name__ == "__main__" :
     batch_evaluator = BatchEvaluator([-1, 4, 8, 16, 20, 24, 28])
     writer = open(args.output_dir + "text_response.jsonl", "w")
     token_writer = open(args.output_dir + "token_length.jsonl", "w") 
-    # manual = open(args.output_dir + "manual_review_text.jsonl", "w")
-    recipe_filter = [13, 15,17,19,23,28,34,37,38,46,51,58,61,62,63,68,74,82,85,87,123]
     with open(args.eval_file, "r") as f:
         dialog_id = 0
         for line in tqdm(f.readlines()):
             obj = json.loads(line)
             ground_dialog = obj['ground_text']
             generated_dialog = obj['generated_text']
-            # TODO : added the dialog count
             ground_token_count = len(tokenizer.encode(ground_dialog))
             generated_token_count = len(tokenizer.encode(generated_dialog))
-            # ==== END =====
-            if ground_token_count > 4096 or (args.domain == "recipe" and dialog_id in recipe_filter): #REMOVE THIS IF
+            if ground_token_count > 4096: 
                 dialog_id += 1
                 continue
             source = obj["source"]
@@ -543,8 +448,6 @@ if __name__ == "__main__" :
                         writer.write(json.dumps(new_obj)+"\n")
                 turn_cnt += 1
             batch_evaluator.end_conversation()
-            # new_obj = {"dialog_id": dialog_id, "source" : source, "ground_history" : ref_history, "generated_history" : hyp_history}
-            # manual.write(json.dumps(new_obj)+"\n")
             dialog_id += 1  
     writer.close()
 
