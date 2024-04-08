@@ -1,6 +1,5 @@
 # SYNTOD
 
-[description here]
 
 ## Set up the environment
 
@@ -8,10 +7,6 @@
 conda create -n syntod python=3.10
 conda activate syntod
 ```
-
-## Data Preparation
-
-Since some of our data is large. You can download them here [add the link here]
 
 ## Framework Structure
 
