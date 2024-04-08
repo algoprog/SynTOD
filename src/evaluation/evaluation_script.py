@@ -389,11 +389,11 @@ class BatchEvaluator:
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default='kimmypracha/llama-marunachef-v1-c1-a100-940')
-    parser.add_argument("--eval_file",default="fine_tuned_generated_output_a100.jsonl")
-    parser.add_argument("--output_dir", default="output/")
-    parser.add_argument("--domain", default="recipe")
-    parser.add_argument("--type", default="graph")
+    parser.add_argument("--model")
+    parser.add_argument("--eval_file")
+    parser.add_argument("--output_dir")
+    parser.add_argument("--domain")
+    parser.add_argument("--type")
     args = parser.parse_args()
     if args.domain == "recipe":
         domain_intent = recipe_intent

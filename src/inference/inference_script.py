@@ -5,9 +5,9 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default='kimmypracha/llama-marunachef-v1-c1-a100-940')
-    parser.add_argument("--output_file",default="fine_tuned_generated_output_a100.jsonl")
-    parser.add_argument("--test_file",default="/project/pi_hzamani_umass_edu/chris/marunachef/qlora/data/marunachef/test_v7.jsonl")
+    parser.add_argument("--model")
+    parser.add_argument("--output_file")
+    parser.add_argument("--test_file")
     args = parser.parse_args()
     session_id = 'test'
     llm = LLM(args.model)

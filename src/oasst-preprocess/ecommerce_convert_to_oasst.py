@@ -85,8 +85,8 @@ def dialog_builder(messages):
     return prompt
 
 def ecommerce_run(args):
-    writer = open(args.generate_file,"w")
-    with open(args.data_path) as f:
+    writer = open(args.output_file,"w")
+    with open(args.conversation_file) as f:
         for row in f.readlines():
             obj = json.loads(row)
             prompt = dialog_builder(obj["conversation"])
@@ -94,8 +94,8 @@ def ecommerce_run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_path", default="/project/pi_hzamani_umass_edu/chris/convtod/E2E-TOD-ECOM/data/ecom_responses_nograph_gpt4turbo.jsonl")
-    parser.add_argument("--generate_file", default="train_v2_nograph.jsonl")
+    parser.add_argument("--conversation_file")
+    parser.add_argument("--output_file")
     args = parser.parse_args()
     ecommerce_run(args)
     

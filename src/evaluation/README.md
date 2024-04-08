@@ -33,4 +33,7 @@ After the evaluation is done, the script will generate multiple figures of confu
 
 4. **domain** : 
 
-a domain of the data we are evaluating. It is either recipe or ecommerce.
+a domain of the data we are evaluating. It is either `recipe` or `ecommerce`.
+
+5. **type** : 
+The type of approach used for data generation. The possible options are `graph` or `nograph`
