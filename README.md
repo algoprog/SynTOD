@@ -49,7 +49,8 @@ For reference, this repository has the following structure :
 
 1. **Data generation**
 
-   [write here]
+    This part proides code for generating synthetic conversations. We have provided a framework on how to generate conversations using a transition graph in two domains. 
+Because of the nature of random walk and non-zero temperaure used in prompting LLMs the output might different on multiple runs of these script. More details [here](src/data-generation/README.md)
 
 2. **Preprocessing**
 
