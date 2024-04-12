@@ -14,9 +14,9 @@ conda activate syntod
 
 This framework includes the following steps:
 
-1. Seed data (corpus items with metadata) is used to generate initial conversational data in jsonl format
-2. Initial data undergoes preprocessing to create data in simple text format for LLM fine-tuning (in OpenAssistant format)
-3. After fine-tuning we can run inference and evaluation scripts
+1. Seed data (corpus items with metadata) is used to generate initial conversational data in jsonl format using random intent paths and multiple simulation prompts with LLMs
+2. Initial data undergoes preprocessing to create data in simple text format for LLM fine-tuning with QLoRA (in OpenAssistant format)
+3. After fine-tuning we can run inference, and evaluation scripts for intent classification, slot filling and response relevance
 
 For reference, this repository has the following structure :
 
