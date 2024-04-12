@@ -28,12 +28,12 @@ For reference, this repository has the following structure :
     │   │   ├── seed/
     │   │   ├── initial/
     │   │   ├── oasst/
-    │   │   └── inference_pairs/
+    │   │   └── inference/
     │   ├── ecommerce/
     │   │   ├── seed/
     │   │   ├── initial/
     │   │   ├── oasst/
-    │   │   └── inference_pairs/
+    │   │   └── inference/
     │   └── README.md
     ├── src/
     │   ├── data-generation/
