@@ -12,11 +12,11 @@ conda activate syntod
 
 ## Framework Structure
 
-In this framework, it is modularized into different steps as the following diagram.
+This framework includes the following steps:
 
-![framework diagram](syntod-process.png)
-
-According to the diagram above, the orange squares are refering to data, and the yellow squares are refering to processes, which are corresponding to the folder in the source directory.
+1. Seed data (corpus items with metadata) is used to generate initial conversational data in jsonl format
+2. Initial data undergoes preprocessing to create data in simple text format for LLM fine-tuning (in OpenAssistant format)
+3. After fine-tuning we can run inference and evaluation scripts
 
 For reference, this repository has the following structure :
 
@@ -28,12 +28,12 @@ For reference, this repository has the following structure :
     │   │   ├── seed/
     │   │   ├── initial/
     │   │   ├── oasst/
-    │   │   └── inference_pair/
+    │   │   └── inference_pairs/
     │   ├── ecommerce/
     │   │   ├── seed/
     │   │   ├── initial/
     │   │   ├── oasst/
-    │   │   └── inference_pair/
+    │   │   └── inference_pairs/
     │   └── README.md
     ├── src/
     │   ├── data-generation/
