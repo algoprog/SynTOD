@@ -1,5 +1,7 @@
-# SYNTOD
+# SynTOD
+SynTOD is a new synthetic data generation approach for developing end-to-end Task-Oriented Dialogue Systems (TODS) capable of handling complex tasks such as intent classification, slot filling, conversational question-answering, and retrieval-augmented response generation, without relying on crowdsourcing or real-world data. SynTOD utilizes a state transition graph to define the desired behavior of a TOD system and generates diverse, structured conversations through random walks and response simulation using large language models (LLMs). In our experiments, using graph-guided response simulations leads to significant improvements in intent classification, slot filling and response relevance compared to naive single-prompt simulated conversations. Our datasets, models and code are released here to serve as proxy benchmarks for building TOD systems.
 
+![framework diagram](syntod-framework.png)
 
 ## Set up the environment
 
@@ -12,7 +14,7 @@ conda activate syntod
 
 In this framework, it is modularized into different steps as the following diagram.
 
-![framework diagram](syntod-framework-diagram.png)
+![framework diagram](syntod-process.png)
 
 According to the diagram above, the orange squares are refering to data, and the yellow squares are refering to processes, which are corresponding to the folder in the source directory.
 
