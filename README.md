@@ -89,3 +89,15 @@ Because of the nature of random walks and non-zero temperaure used in prompting 
    ```
    sh evaluation/evaluate.sh
    ```
+## Citation
+
+```
+@misc{samarinas2024simulating,
+      title={Simulating Task-Oriented Dialogues with State Transition Graphs and Large Language Models}, 
+      author={Chris Samarinas and Pracha Promthaw and Atharva Nijasure and Hansi Zeng and Julian Killingback and Hamed Zamani},
+      year={2024},
+      eprint={2404.14772},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+```
