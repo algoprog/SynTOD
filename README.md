@@ -89,6 +89,12 @@ Because of the nature of random walks and non-zero temperaure used in prompting 
    ```
    sh evaluation/evaluate.sh
    ```
+
+## Pre-trained Models
+
+- [Llama 2 7B SynTOD Cooking Assistance](https://huggingface.co/umass/llama-2-7b-syntod-cooking-assistance)
+- [Llama 2 7B SynTOD Ecommerce Assistance](https://huggingface.co/umass/llama-2-7b-syntod-ecommerce-assistance)
+
 ## Citation
 
 ```
