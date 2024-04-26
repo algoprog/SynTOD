@@ -107,3 +107,11 @@ Because of the nature of random walks and non-zero temperaure used in prompting 
       primaryClass={cs.CL}
 }
 ```
+
+## Acknowledgments
+
+This work was supported in part by the Center for Intelligent Information Retrieval, in
+part by the Amazon Alexa Prize Competition, in part by Adobe, in part by NSF grant
+#2143434, and in part by the Office of Naval Research contract #N000142212688. Any
+opinions, findings and conclusions or recommendations expressed in this material are those
+of the authors and do not necessarily reflect those of the sponsor.
